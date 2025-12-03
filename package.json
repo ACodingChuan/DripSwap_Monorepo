@@ -1,0 +1,27 @@
+{
+  "name": "dripswap-monorepo",
+  "private": true,
+  "packageManager": "pnpm@10.16.1",
+  "scripts": {
+    "frontend:dev": "pnpm --dir apps/frontend dev",
+    "frontend:test": "pnpm --dir apps/frontend test",
+    "frontend:build": "pnpm --dir apps/frontend build",
+    "frontend:lint": "pnpm --dir apps/frontend lint",
+    "frontend:typecheck": "pnpm --dir apps/frontend typecheck",
+    "contracts:test": "pnpm --dir apps/contracts test",
+    "contracts:deploy": "pnpm --dir apps/contracts run deploy",
+    "contracts:fmt": "pnpm --dir apps/contracts fmt",
+    "bff:dev": "cd apps/bff && mvn spring-boot:run",
+    "bff:test": "cd apps/bff && mvn test",
+    "bff:build": "cd apps/bff && mvn -DskipTests package",
+    "subgraph:codegen": "pnpm --dir apps/subgraph/sepolia run codegen",
+    "subgraph:deploy": "pnpm --dir apps/subgraph/sepolia run deploy",
+    "subgraph:build": "pnpm --dir apps/subgraph/sepolia run build",
+    "contracts:build": "pnpm --dir apps/contracts run build",
+    "package:all": "pnpm --dir apps/frontend build && pnpm --dir apps/contracts run build && pnpm --dir apps/subgraph/sepolia run build && cd apps/bff && mvn -DskipTests package",
+    "test:all": "pnpm --dir apps/frontend test && pnpm --dir apps/contracts test && pnpm --dir apps/subgraph/sepolia run test && cd apps/bff && mvn test",
+    "lint:all": "pnpm --dir apps/frontend lint",
+    "format:all": "pnpm --dir apps/frontend format && pnpm --dir apps/contracts fmt"
+  },
+  "devDependencies": {}
+}

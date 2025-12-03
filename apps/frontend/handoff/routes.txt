@@ -1,0 +1,8 @@
+/
+/swap
+/pools
+/pools/mine
+/pools/add
+/pools/remove
+/faucet
+/bridge

@@ -1,0 +1,42 @@
+# Node / JS
+node_modules/
+dist/
+.turbo/
+.next/
+coverage/
+
+# Frontend artifacts
+apps/frontend/.env.local
+apps/frontend/.env.*
+apps/frontend/test-results/
+apps/frontend/dripswap.md
+
+# Subgraph artifacts
+apps/subgraph/**/build/
+apps/subgraph/**/generated/
+apps/subgraph/**/node_modules/
+apps/subgraph/**/.cache/
+
+# Contracts / Foundry
+apps/contracts/out/
+apps/contracts/out-v2core/
+apps/contracts/out-v2router/
+apps/contracts/cache/
+apps/contracts/broadcast/
+apps/contracts/broadcastbak/
+apps/contracts/deployments/
+apps/contracts/.env*
+
+# BFF / Java
+apps/bff/target/
+apps/bff/.idea/
+apps/bff/.project
+apps/bff/.classpath
+apps/bff/.settings/
+
+# Misc
+.DS_Store
+.env
+.vscode/
+.husky/
+.pnpm-store/

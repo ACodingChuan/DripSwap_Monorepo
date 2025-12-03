@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: dripswap-bff
+
+  datasource:
+    url: ${BFF_DB_URL:jdbc:postgresql://localhost:5432/dripswap}
+    username: ${BFF_DB_USER:dripswap}
+    password: ${BFF_DB_PASSWORD:dripswap}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/001-init.xml
+
+  redis:
+    host: ${BFF_REDIS_HOST:localhost}
+    port: ${BFF_REDIS_PORT:6379}
+
+  graphql:
+    graphiql:
+      enabled: true
+      path: /graphiql
+    schema:
+      locations: classpath:graphql/**/
+    path: /graphql
+  mvc:
+    cors:
+      mappings:
+        - path-pattern: "/**"
+          allowed-origins: "${BFF_CORS_ALLOWED_ORIGINS:http://localhost:5173}"
+          allowed-methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+          allowed-headers: "*"
+          allow-credentials: true
+
+server:
+  port: ${BFF_SERVER_PORT:8080}
+
+subgraph:
+  sync-interval-ms: ${SUBGRAPH_SYNC_INTERVAL_MS:120000} # 2 分钟
+  batch-size: ${SUBGRAPH_BATCH_SIZE:500}
+  retry-count: ${SUBGRAPH_RETRY_COUNT:3}
+  chains:
+    - id: sepolia
+      enabled: true
+      endpoint: "${SUBGRAPH_SEPOLIA_ENDPOINT:https://api.studio.thegraph.com/query/1716244/sepolia/version/latest}"
+      start-block: 9573280
+    - id: scroll-sepolia
+      enabled: false
+      endpoint: "${SUBGRAPH_SCROLL_SEPOLIA_ENDPOINT:}"
+      start-block: 0
+
+# DripSwap multi-chain configuration
+dripswap:
+  chains:
+    - id: sepolia
+      name: Ethereum Sepolia
+      chainId: 11155111
+      enabled: false
+      rpc:
+        http: "${BFF_SEPOLIA_RPC_HTTP:https://sepolia.example-rpc.io}"
+        ws: "${BFF_SEPOLIA_RPC_WS:wss://eth-sepolia.g.alchemy.com/v2/DhJ0V7QwXBRjUtK5_kL8nbauZLdn5WRI}"
+    - id: scroll-sepolia
+      name: Scroll Sepolia
+      chainId: 534351
+      enabled: false
+      rpc:
+        http: "${BFF_SCROLL_SEPOLIA_RPC_HTTP:https://scroll-sepolia.example-rpc.io}"
+        ws: "${BFF_SCROLL_SEPOLIA_RPC_WS:wss://scroll-sepolia.g.alchemy.com/v2/DhJ0V7QwXBRjUtK5_kL8nbauZLdn5WRI}"
+
+# OpenTelemetry configuration
+otel:
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+  resource:
+    attributes:
+      service.name: dripswap-bff
+      service.version: 1.0.0

@@ -1,0 +1,37 @@
+{
+  "name": "dripswap-contract",
+  "version": "1.0.0",
+  "description": "DripSwap智能合约项目 - 包含自动ABI提取功能",
+  "type": "module",
+  "packageManager": "pnpm@10.16.1",
+  "scripts": {
+    "build": "forge build && pnpm run extract-abi",
+    "extract-abi": "node tools/extract-abi.js",
+    "test": "forge test",
+    "test:coverage": "forge coverage --report lcov && genhtml lcov.info --output-directory coverage-html",
+    "clean": "forge clean && rm -rf abi/*.json",
+    "fmt": "forge fmt",
+    "deploy": "forge script",
+    "install:deps": "forge install",
+    "verify:burnmint": "node tools/verify-burnmint.js",
+    "verify:burnmint:sepolia": "node tools/verify-burnmint.js sepolia",
+    "verify:burnmint:scroll": "node tools/verify-burnmint.js scroll",
+    "permit:sign": "node tools/sign-permit2.js"
+  },
+  "keywords": [
+    "solidity",
+    "foundry",
+    "defi",
+    "uniswap",
+    "smart-contracts"
+  ],
+  "author": "DripSwap Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "ethers": "^6.15.0"
+  }
+}

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.15.xsd">
+
+    <changeSet id="004-create-tx-records" author="dripswap">
+        <createTable tableName="tx_records">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false" />
+            </column>
+            <column name="chain_id" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="block_number" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tx_hash" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_sig" type="VARCHAR(256)"/>
+            <column name="decoded_name" type="VARCHAR(128)"/>
+            <column name="decoded_data" type="TEXT"/>
+            <column name="status" type="VARCHAR(32)" defaultValue="pending">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        
+        <!-- Create unique index for idempotency: one tx_hash per chain -->
+        <createIndex indexName="idx_tx_records_chain_tx_hash" tableName="tx_records" unique="true">
+            <column name="chain_id"/>
+            <column name="tx_hash"/>
+        </createIndex>
+        
+        <!-- Create index for queries by status -->
+        <createIndex indexName="idx_tx_records_status" tableName="tx_records">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,375 @@
+import {
+  useState,
+  useRef,
+  useEffect,
+  type PropsWithChildren,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
+import { Link, useRouterState } from '@tanstack/react-router';
+import { useAccount, useSignMessage, useDisconnect, useSwitchChain, useChainId } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { sepolia, scrollSepolia } from 'wagmi/chains';
+
+import {
+  Button,
+  Badge,
+  toast,
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/shared/ui';
+import { cn } from '@/shared/utils';
+import { Droplet, ChevronDown, Menu, Settings, LogOut, Network } from '@/shared/icons';
+import { useAuthStore } from '@/shared/store/authStore';
+import { authService } from '@/app/services/auth-service';
+
+const SUPPORTED_CHAINS = [sepolia, scrollSepolia];
+
+const NAV_ITEMS = [
+  { label: 'Home', path: '/' },
+  { label: 'Swap', path: '/swap' },
+  {
+    label: 'Liquidity Pool',
+    path: '/pools',
+    submenu: [{ label: 'My Liquidity', path: '/pools/mine' }],
+  },
+  { label: 'Faucet', path: '/faucet' },
+  { label: 'Bridge', path: '/bridge' },
+] as const;
+
+export function AppShell({ children }: PropsWithChildren) {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-[var(--space-lg)] focus:top-[var(--space-lg)] focus:z-50 focus:rounded-full focus:bg-primary focus:px-[var(--space-md)] focus:py-[var(--space-sm)] focus:text-primary-foreground focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+      <SiteHeader />
+      <main id="main-content" className="pb-[var(--space-xl)] pt-20">
+        {children}
+      </main>
+    </div>
+  );
+}
+
+function SiteHeader() {
+  return (
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur">
+      <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between gap-[var(--space-md)] px-6">
+        <Brand />
+        <PrimaryNav />
+        <div className="flex items-center gap-[var(--space-sm)]">
+          <MobileMenu />
+          <RightActions />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Brand() {
+  return (
+    <Button variant="ghost" size="sm" className="-ml-2 px-[var(--space-sm)]" asChild>
+      <Link to="/" className="flex items-center gap-[var(--space-sm)]" aria-label="Go to home">
+        <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+          <Droplet className="size-4" aria-hidden="true" />
+        </span>
+        <span className="text-base font-semibold tracking-tight">DripSwap</span>
+      </Link>
+    </Button>
+  );
+}
+
+function PrimaryNav() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  return (
+    <nav
+      aria-label="Primary"
+      className="ml-[var(--space-lg)] hidden items-center gap-[var(--space-sm)] lg:flex"
+    >
+      {NAV_ITEMS.map((item) =>
+        item.submenu ? (
+          <LiquidityMenu key={item.label} pathname={pathname} />
+        ) : (
+          <NavLink key={item.path} to={item.path} pathname={pathname} label={item.label} />
+        )
+      )}
+    </nav>
+  );
+}
+
+function MobileMenu() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="lg:hidden px-2" aria-label="Open navigation">
+          <Menu className="size-5" aria-hidden="true" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="w-[min(22rem,90vw)] gap-[var(--space-md)] px-0 py-[var(--space-lg)]">
+        <DialogHeader className="px-[var(--space-lg)]">
+          <DialogTitle>Navigate</DialogTitle>
+        </DialogHeader>
+        <nav
+          className="flex flex-col gap-[var(--space-xs)] px-[var(--space-lg)]"
+          aria-label="Mobile"
+        >
+          {NAV_ITEMS.map((item) =>
+            item.submenu ? (
+              <div key={item.label} className="flex flex-col gap-[var(--space-xs)]">
+                <DialogClose asChild>
+                  <Button variant="ghost" size="md" className="justify-start" asChild>
+                    <Link to={item.path}>{item.label}</Link>
+                  </Button>
+                </DialogClose>
+                {item.submenu.map((subItem) => (
+                  <DialogClose asChild key={subItem.path}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="justify-start pl-[calc(var(--space-lg)+var(--space-sm))] text-sm text-muted-foreground"
+                      asChild
+                    >
+                      <Link to={subItem.path}>{subItem.label}</Link>
+                    </Button>
+                  </DialogClose>
+                ))}
+              </div>
+            ) : (
+              <DialogClose asChild key={item.path}>
+                <Button variant="ghost" size="md" className="justify-start" asChild>
+                  <Link to={item.path}>{item.label}</Link>
+                </Button>
+              </DialogClose>
+            )
+          )}
+        </nav>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RightActions() {
+  return (
+    <div className="flex items-center gap-[var(--space-sm)]">
+      <WalletButton />
+    </div>
+  );
+}
+
+function NavLink({ to, label, pathname }: { to: string; label: string; pathname: string }) {
+  const isActive = pathname === to || (to !== '/' && pathname.startsWith(`${to}/`));
+
+  return (
+    <Button
+      variant={isActive ? 'secondary' : 'ghost'}
+      size="sm"
+      asChild
+      className={cn('px-[var(--space-md)] text-sm font-medium', isActive && 'shadow-sm')}
+    >
+      <Link to={to} aria-current={isActive ? 'page' : undefined}>
+        {label}
+      </Link>
+    </Button>
+  );
+}
+function LiquidityMenu({ pathname }: { pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLAnchorElement | null>(null);
+  const menuId = 'nav-liquidity-menu';
+  const closeTimer = useRef<number | null>(null);
+
+  const isActive = pathname === '/pools' || pathname.startsWith('/pools/');
+
+  useEffect(() => {
+    // 路由变更即关闭
+    setOpen(false);
+  }, [pathname]);
+
+  // --- 辅助：打开/延时关闭，防抖动 ---
+  const openNow = () => {
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    setOpen(true);
+  };
+  const scheduleClose = () => {
+    if (closeTimer.current) window.clearTimeout(closeTimer.current);
+    closeTimer.current = window.setTimeout(() => setOpen(false), 120);
+  };
+
+  const handleBlur = (event: FocusEvent<HTMLDivElement>) => {
+    // 焦点仍在容器内部则不关闭（键盘可达）
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    scheduleClose();
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    }
+  };
+
+  const handleMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
+    const next = event.relatedTarget as Node | null;
+    // 如果下一命中节点仍在容器内部，则不关闭
+    if (next && event.currentTarget.contains(next)) return;
+    scheduleClose();
+  };
+
+  return (
+    // 关键 1：给父容器加 padding-bottom，把“缝隙”算进容器盒子
+    <div
+      className="relative pb-2"
+      onMouseEnter={openNow}
+      onMouseLeave={handleMouseLeave}
+      onFocus={openNow}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+    >
+      <Button
+        variant={isActive ? 'secondary' : 'ghost'}
+        size="sm"
+        className={cn('px-[var(--space-md)] text-sm font-medium', isActive && 'shadow-sm')}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={menuId}
+        onClick={() => (open ? setOpen(false) : setOpen(true))}
+        asChild
+      >
+        <Link ref={triggerRef} to="/pools">
+          <span className="flex items-center gap-[var(--space-xs)]">
+            Liquidity Pool
+            <ChevronDown className="size-3" aria-hidden="true" />
+          </span>
+        </Link>
+      </Button>
+
+      <div
+        id={menuId}
+        role="menu"
+        aria-label="Liquidity pool submenu"
+        className={cn(
+          // 关键 2：去掉原来的 mt-2 空缝；使用 top-full 贴合按钮，并轻微重叠 1px 防抖
+          'absolute left-0 top-full -translate-y-px w-48 rounded-2xl border border-border bg-card p-[var(--space-sm)] shadow-xl z-50',
+          // 关键 3：用透明度/位移动画，不要 pointer-events:none 影响命中
+          open
+            ? 'opacity-100 translate-y-0 transition-all duration-200'
+            : 'opacity-0 -translate-y-1 pointer-events-none transition-all duration-200'
+        )}
+      >
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start px-[var(--space-md)]"
+          asChild
+        >
+          <Link to="/pools/mine" role="menuitem" onClick={() => setOpen(false)}>
+            My Liquidity
+          </Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function WalletButton() {
+  const { address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const { isAuthenticated, setSession, logout } = useAuthStore();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // 自动登录：当钱包连接且未认证时，自动触发登录
+  useEffect(() => {
+    const autoLogin = async () => {
+      if (address && !isAuthenticated && !isLoggingIn) {
+        setIsLoggingIn(true);
+        try {
+          // 1. Get nonce from backend
+          const nonce = await authService.getNonce(address);
+
+          // 2. Sign the nonce
+          const signature = await signMessageAsync({ message: nonce });
+
+          // 3. Send to backend for verification
+          const { sessionId } = await authService.login(address, nonce, signature);
+
+          // 4. Store session
+          setSession(sessionId, address);
+          toast('Connected & Authenticated', { 
+            description: `Welcome ${address.slice(0, 6)}...${address.slice(-4)}` 
+          });
+        } catch (error: any) {
+          console.error('Auto-login failed:', error);
+          // 静默失败，不打扰用户
+          // 用户可以稍后手动重试或刷新页面
+        } finally {
+          setIsLoggingIn(false);
+        }
+      }
+    };
+
+    autoLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address, isAuthenticated]);
+
+  // 当钱包断开时，自动清除 session
+  useEffect(() => {
+    if (!address && isAuthenticated) {
+      logout();
+    }
+  }, [address, isAuthenticated, logout]);
+
+  return (
+    <div className="flex items-center gap-[var(--space-sm)]">
+      <ConnectButton.Custom>
+        {({ account, chain, openConnectModal, mounted }) => {
+          const ready = mounted;
+          const connected = ready && account && chain;
+
+          return (
+            <div
+              {...(!ready && {
+                'aria-hidden': true,
+                style: {
+                  opacity: 0,
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                },
+              })}
+            >
+              {(() => {
+                if (!connected) {
+                  return (
+                    <Button size="sm" onClick={openConnectModal} className="shadow-sm">
+                      Connect Wallet
+                    </Button>
+                  );
+                }
+
+                return (
+                  <Badge className="px-3 py-1.5">
+                    {account.displayName}
+                  </Badge>
+                );
+              })()}
+            </div>
+          );
+        }}
+      </ConnectButton.Custom>
+    </div>
+  );
+}

@@ -1,0 +1,90 @@
+:root {
+  --background: 216 38% 97%;
+  --foreground: 222 47% 11%;
+  --muted: 215 33% 92%;
+  --muted-foreground: 215 19% 35%;
+  --primary: 220 91% 54%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 28% 90%;
+  --secondary-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 142 71% 45%;
+  --success-foreground: 142 22% 96%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 32 92% 20%;
+  --border: 215 25% 82%;
+  --input: 215 25% 85%;
+  --ring: 220 91% 54%;
+  --surface-elevated: 223 6% 96%;
+  --surface-contrast: 223 6% 56%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --radius-card: 1.5rem;
+  --radius-control: 0.75rem;
+  --radius-pill: 999px;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.5rem;
+  --space-2xl: 2rem;
+}
+
+.dark {
+  --background: 220 49% 8%;
+  --foreground: 0 0% 96%;
+  --muted: 220 28% 16%;
+  --muted-foreground: 214 31% 78%;
+  --primary: 220 91% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 26% 18%;
+  --secondary-foreground: 214 31% 85%;
+  --destructive: 0 72% 54%;
+  --destructive-foreground: 0 0% 100%;
+  --success: 142 64% 55%;
+  --success-foreground: 142 21% 12%;
+  --warning: 38 92% 58%;
+  --warning-foreground: 32 92% 12%;
+  --border: 221 36% 24%;
+  --input: 221 36% 24%;
+  --ring: 220 91% 60%;
+  --surface-elevated: 220 42% 14%;
+  --surface-contrast: 214 31% 78%;
+  --card: 220 42% 10%;
+  --card-foreground: 0 0% 96%;
+  --radius-card: 1.5rem;
+  --radius-control: 0.75rem;
+  --radius-pill: 999px;
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.5rem;
+  --space-2xl: 2rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings:
+    'liga' 1,
+    'kern' 1;
+}
+
+a {
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px hsl(var(--ring) / 0.2);
+}

@@ -1,0 +1,182 @@
+schema {
+  query: Query
+}
+
+type Query {
+  """Health check endpoint"""
+  ping: String!
+  
+  """Get latest raw events from blockchain"""
+  latestRawEvents(chainId: String!, limit: Int): [RawEventPayload!]!
+  
+  """Get recent parsed transactions"""
+  recentTransactions(chainId: String!, limit: Int): [TransactionPayload!]!
+  
+  """Get subgraph synchronization status"""
+  subgraphStatus(chainId: String!): SubgraphStatusPayload!
+  
+  """Get trading pairs from subgraph"""
+  pairs(chainId: String!, filter: PairFilterInput): [PairPayload!]!
+  
+  """Get tokens from subgraph"""
+  tokens(chainId: String!, filter: TokenFilterInput): [TokenPayload!]!
+  
+  """Get user portfolio summary"""
+  userPortfolio(address: String!): UserPortfolioPayload!
+  
+  """Get recent demo transactions"""
+  recentDemoTx(limit: Int): [DemoTxPayload!]!
+  
+  """Get token analytics"""
+  analyticsToken(token: String!): TokenStats!
+  
+  """Get pair analytics"""
+  analyticsPair(pair: String!): PairStats!
+  
+  """Get user portfolio analytics"""
+  analyticsUser(user: String!): UserPortfolio!
+  
+  """Get TVL analytics"""
+  analyticsTvl: TvlStats!
+}
+
+"""Raw blockchain event from eth_log"""
+type RawEventPayload {
+  id: ID!
+  chainId: String!
+  blockNumber: Long!
+  txHash: String!
+  logIndex: Int!
+  eventSig: String
+  rawData: String
+  createdAt: String!
+}
+
+"""Parsed transaction record"""
+type TransactionPayload {
+  id: ID!
+  chainId: String!
+  blockNumber: Long!
+  txHash: String!
+  eventSig: String
+  decodedName: String
+  decodedData: String
+  status: String!
+  createdAt: String!
+}
+
+"""Subgraph synchronization status"""
+type SubgraphStatusPayload {
+  chainId: String!
+  isHealthy: Boolean!
+  syncedBlock: Long
+  headBlock: Long
+  indexingErrorCount: Int
+  message: String
+}
+
+"""Trading pair from subgraph"""
+type PairPayload {
+  id: String!
+  token0: String!
+  token1: String!
+  reserve0: String
+  reserve1: String
+  totalSupply: String
+  volumeUSD: String
+  feesUSD: String
+}
+
+"""Token from subgraph"""
+type TokenPayload {
+  id: String!
+  name: String
+  symbol: String
+  decimals: Int
+  totalSupply: String
+  derivedETH: String
+  volumeUSD: String
+  feesUSD: String
+}
+
+"""User portfolio summary"""
+type UserPortfolioPayload {
+  address: String!
+  totalValueUSD: String
+  holdings: [TokenHoldingPayload!]!
+  transactionCount: Int!
+}
+
+"""Token holding in user portfolio"""
+type TokenHoldingPayload {
+  tokenAddress: String!
+  tokenSymbol: String
+  balance: String!
+  valueUSD: String
+}
+
+"""Pair filter input"""
+input PairFilterInput {
+  volumeUSDMin: String
+  volumeUSDMax: String
+  reserve0Min: String
+  reserve1Min: String
+}
+
+"""Token filter input"""
+input TokenFilterInput {
+  volumeUSDMin: String
+  volumeUSDMax: String
+  decimalsMin: Int
+  decimalsMax: Int
+}
+
+"""Custom scalar for long/bigint values"""
+scalar Long
+
+"""Demo transaction from demo_tx table"""
+type DemoTxPayload {
+  id: ID!
+  txHash: String!
+  chainId: String!
+  status: String!
+  createdAt: String!
+}
+
+"""Token statistics"""
+type TokenStats {
+  token: String!
+  volume24h: BigDecimal!
+  volume7d: BigDecimal!
+  liquidityUSD: BigDecimal!
+  holders: Int!
+}
+
+"""Pair statistics"""
+type PairStats {
+  pair: String!
+  price: BigDecimal!
+  reserve0: BigDecimal!
+  reserve1: BigDecimal!
+  volume24h: BigDecimal!
+  volume7d: BigDecimal!
+  tvl: BigDecimal!
+  feeApr: BigDecimal!
+}
+
+"""User portfolio"""
+type UserPortfolio {
+  address: String!
+  netFlowUSD: BigDecimal!
+  recentSwaps: [String!]!
+}
+
+"""TVL statistics"""
+type TvlStats {
+  tvl: BigDecimal!
+  tvl24hAgo: BigDecimal!
+  changeRate: BigDecimal!
+}
+
+"""Custom scalar for BigDecimal values"""
+scalar BigDecimal

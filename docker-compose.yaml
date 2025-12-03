@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: dripswap-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${BFF_DB_USER:-dripswap}
+      POSTGRES_PASSWORD: ${BFF_DB_PASSWORD:-dripswap}
+      POSTGRES_DB: ${BFF_DB_NAME:-dripswap}
+    ports:
+      - "${BFF_DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dripswap-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BFF_DB_USER:-dripswap}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL Admin Panel
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: dripswap-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dripswap-network
+
+  # Redis Cache
+  redis:
+    image: redis:7
+    container_name: dripswap-redis
+    restart: always
+    ports:
+      - "${BFF_REDIS_PORT:-6379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - dripswap-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Jaeger All-in-One for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      # Jaeger UI
+      - "16686:16686"
+      # OTLP gRPC receiver
+      - "4317:4317"
+      # OTLP HTTP receiver
+      - "4318:4318"
+      # Jaeger agent compact thrift
+      - "6831:6831/udp"
+      # Jaeger agent zipkin thrift
+      - "5775:5775/udp"
+      # Jaeger agent zipkin compact thrift
+      - "5778:5778"
+      # Jaeger collector zipkin
+      - "9411:9411"
+    networks:
+      - dripswap-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:16686/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  dripswap-network:
+    driver: bridge

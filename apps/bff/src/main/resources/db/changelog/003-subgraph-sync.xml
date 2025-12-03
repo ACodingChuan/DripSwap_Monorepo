@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.15.xsd">
+
+    <!-- 游标表：按链 + 数据类型维护进度（block/timestamp/id） -->
+    <changeSet id="005-create-sync-cursor" author="dripswap">
+        <createTable tableName="sync_cursor">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="chain_id" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="data_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_sync_block_number" type="BIGINT" defaultValueNumeric="0"/>
+            <column name="last_sync_timestamp" type="BIGINT" defaultValueNumeric="0"/>
+            <column name="last_synced_id" type="VARCHAR(256)"/>
+            <column name="last_error_message" type="TEXT"/>
+            <column name="error_count" type="INT" defaultValueNumeric="0"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <addUniqueConstraint tableName="sync_cursor"
+                             columnNames="chain_id,data_type"
+                             constraintName="uq_sync_cursor_chain_type"/>
+    </changeSet>
+
+    <!-- Uniswap 视角：Pair / Token / Swap / Liquidity -->
+    <changeSet id="006-create-pair-cache" author="dripswap">
+        <createTable tableName="pair_cache">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="chain_id" type="VARCHAR(64)" />
+            <column name="address" type="VARCHAR(66)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="token0_address" type="VARCHAR(66)" />
+            <column name="token1_address" type="VARCHAR(66)" />
+            <column name="reserve0" type="NUMERIC(78,0)" />
+            <column name="reserve1" type="NUMERIC(78,0)" />
+            <column name="liquidity" type="NUMERIC(78,0)" />
+            <column name="volume_token0" type="NUMERIC(78,0)" />
+            <column name="volume_token1" type="NUMERIC(78,0)" />
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <createIndex indexName="idx_pair_cache_chain_address" tableName="pair_cache" unique="true">
+            <column name="chain_id"/>
+            <column name="address"/>
+        </createIndex>
+        <createIndex indexName="idx_pair_cache_token0" tableName="pair_cache">
+            <column name="token0_address"/>
+        </createIndex>
+        <createIndex indexName="idx_pair_cache_token1" tableName="pair_cache">
+            <column name="token1_address"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="007-create-token-meta" author="dripswap">
+        <createTable tableName="token_meta">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="chain_id" type="VARCHAR(64)" />
+            <column name="address" type="VARCHAR(66)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="symbol" type="VARCHAR(64)" />
+            <column name="name" type="VARCHAR(128)" />
+            <column name="decimals" type="INT" />
+            <column name="total_supply" type="NUMERIC(78,0)"/>
+            <column name="synced_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <createIndex indexName="idx_token_meta_chain_address" tableName="token_meta" unique="true">
+            <column name="chain_id"/>
+            <column name="address"/>
+        </createIndex>
+        <createIndex indexName="idx_token_meta_symbol" tableName="token_meta">
+            <column name="symbol"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="008-create-swap-tx" author="dripswap">
+        <createTable tableName="swap_tx">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="chain_id" type="VARCHAR(64)"/>
+            <column name="tx_hash" type="VARCHAR(128)"/>
+            <column name="pair_address" type="VARCHAR(66)"/>
+            <column name="sender" type="VARCHAR(66)"/>
+            <column name="amount0_in" type="NUMERIC(78,0)"/>
+            <column name="amount1_in" type="NUMERIC(78,0)"/>
+            <column name="amount0_out" type="NUMERIC(78,0)"/>
+            <column name="amount1_out" type="NUMERIC(78,0)"/>
+            <column name="to_address" type="VARCHAR(66)"/>
+            <column name="block_number" type="BIGINT"/>
+            <column name="block_timestamp" type="BIGINT"/>
+            <column name="log_index" type="INT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <createIndex indexName="idx_swap_tx_chain_txhash_log" tableName="swap_tx" unique="true">
+            <column name="chain_id"/>
+            <column name="tx_hash"/>
+            <column name="log_index"/>
+        </createIndex>
+        <createIndex indexName="idx_swap_tx_pair" tableName="swap_tx">
+            <column name="pair_address"/>
+        </createIndex>
+        <createIndex indexName="idx_swap_tx_block" tableName="swap_tx">
+            <column name="block_number"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="009-create-liquidity-tx" author="dripswap">
+        <createTable tableName="liquidity_tx">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="chain_id" type="VARCHAR(64)"/>
+            <column name="tx_hash" type="VARCHAR(128)"/>
+            <column name="pair_address" type="VARCHAR(66)"/>
+            <column name="sender" type="VARCHAR(66)"/>
+            <column name="amount0" type="NUMERIC(78,0)"/>
+            <column name="amount1" type="NUMERIC(78,0)"/>
+            <column name="liquidity_amount" type="NUMERIC(78,0)"/>
+            <column name="type" type="VARCHAR(16)"/> <!-- MINT | BURN -->
+            <column name="block_number" type="BIGINT"/>
+            <column name="block_timestamp" type="BIGINT"/>
+            <column name="log_index" type="INT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <createIndex indexName="idx_liquidity_tx_chain_txhash_log" tableName="liquidity_tx" unique="true">
+            <column name="chain_id"/>
+            <column name="tx_hash"/>
+            <column name="log_index"/>
+        </createIndex>
+        <createIndex indexName="idx_liquidity_tx_pair" tableName="liquidity_tx">
+            <column name="pair_address"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Bridge 跨链：发送记录 + 池侧腿 -->
+    <changeSet id="010-create-bridge-tx" author="dripswap">
+        <createTable tableName="bridge_tx">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="chain_id" type="VARCHAR(64)"/>
+            <column name="message_id" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sender" type="VARCHAR(66)"/>
+            <column name="receiver" type="VARCHAR(66)"/>
+            <column name="token" type="VARCHAR(66)"/>
+            <column name="amount" type="NUMERIC(78,0)"/>
+            <column name="pool" type="VARCHAR(66)"/>
+            <column name="pay_in_link" type="BOOLEAN"/>
+            <column name="ccip_fee" type="NUMERIC(78,0)"/>
+            <column name="service_fee_paid" type="NUMERIC(78,0)"/>
+            <column name="status" type="VARCHAR(32)"/>
+            <column name="block_number" type="BIGINT"/>
+            <column name="block_timestamp" type="BIGINT"/>
+            <column name="tx_hash" type="VARCHAR(128)"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <createIndex indexName="idx_bridge_tx_chain_message" tableName="bridge_tx" unique="true">
+            <column name="chain_id"/>
+            <column name="message_id"/>
+        </createIndex>
+        <createIndex indexName="idx_bridge_tx_txhash" tableName="bridge_tx">
+            <column name="tx_hash"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="011-create-bridge-leg" author="dripswap">
+        <createTable tableName="bridge_leg">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="chain_id" type="VARCHAR(64)"/>
+            <column name="tx_hash" type="VARCHAR(128)"/>
+            <column name="log_index" type="INT"/>
+            <column name="pool" type="VARCHAR(66)"/>
+            <column name="token" type="VARCHAR(66)"/>
+            <column name="remote_chain_selector" type="BIGINT"/>
+            <column name="sender" type="VARCHAR(66)"/>
+            <column name="recipient" type="VARCHAR(66)"/>
+            <column name="amount" type="NUMERIC(78,0)"/>
+            <column name="leg_type" type="VARCHAR(32)"/> <!-- LOCKED_OR_BURNED / RELEASED_OR_MINTED -->
+            <column name="correlation_type" type="VARCHAR(16)"/> <!-- Exact|Heuristic|None -->
+            <column name="message_id" type="VARCHAR(128)"/> <!-- 可选：仅当上层推断 -->
+            <column name="block_number" type="BIGINT"/>
+            <column name="block_timestamp" type="BIGINT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <createIndex indexName="idx_bridge_leg_chain_tx_log" tableName="bridge_leg" unique="true">
+            <column name="chain_id"/>
+            <column name="tx_hash"/>
+            <column name="log_index"/>
+        </createIndex>
+        <createIndex indexName="idx_bridge_leg_pool" tableName="bridge_leg">
+            <column name="pool"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- VToken 状态 -->
+    <changeSet id="012-create-vtoken-state" author="dripswap">
+        <createTable tableName="vtoken_state">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="chain_id" type="VARCHAR(64)"/>
+            <column name="address" type="VARCHAR(66)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="symbol" type="VARCHAR(64)"/>
+            <column name="name" type="VARCHAR(128)"/>
+            <column name="decimals" type="INT"/>
+            <column name="total_supply" type="NUMERIC(78,0)"/>
+            <column name="total_minted" type="NUMERIC(78,0)"/>
+            <column name="total_burned" type="NUMERIC(78,0)"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+        <createIndex indexName="idx_vtoken_state_chain_address" tableName="vtoken_state" unique="true">
+            <column name="chain_id"/>
+            <column name="address"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

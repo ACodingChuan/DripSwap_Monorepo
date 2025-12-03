@@ -1,0 +1,11 @@
+node_modules
+.DS_Store
+dist
+coverage
+playwright-report
+.vscode/*.code-workspace
+*.log
+.env
+# BMAD (local only)
+.bmad-core/
+.bmad-*/

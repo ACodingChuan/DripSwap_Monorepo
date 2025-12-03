@@ -1,0 +1,824 @@
+specVersion: 1.3.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+
+templates:
+  - kind: ethereum/contract
+    name: UniswapV2Pair
+    network: sepolia
+    source:
+      abi: UniswapV2Pair
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/pair.ts
+      entities:
+        - Pair
+        - Token
+      abis:
+        - name: UniswapV2Pair
+          file: ./abis/UniswapV2Pair.json
+        - name: VToken
+          file: ./abis/VToken.json
+      eventHandlers:
+        - event: Swap(indexed address,uint256,uint256,uint256,uint256,indexed address)
+          handler: handleSwap
+        - event: Mint(indexed address,uint256,uint256)
+          handler: handleMint
+        - event: Burn(indexed address,uint256,uint256,indexed address)
+          handler: handleBurn
+        - event: Sync(uint112,uint112)
+          handler: handleSync
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleApproval
+
+dataSources:
+  - kind: ethereum
+    name: UniswapV2Factory
+    network: sepolia
+    source:
+      address: "0x6C9258026A9272368e49bBB7D0A78c17BBe284BF"
+      abi: UniswapV2Factory
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Pair
+        - Token
+      abis:
+        - name: UniswapV2Factory
+          file: ./abis/UniswapV2Factory.json
+        - name: UniswapV2Pair
+          file: ./abis/UniswapV2Pair.json
+        - name: VToken
+          file: ./abis/VToken.json
+      eventHandlers:
+        - event: PairCreated(indexed address,indexed address,address,uint256)
+          handler: handlePairCreated
+      file: ./src/factory.ts
+
+  - kind: ethereum
+    name: VToken_vETH
+    network: sepolia
+    source:
+      address: "0xE91d02E66a9152Fee1BC79c1830121F6507a4F6D"
+      abi: VToken
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - VToken
+        - VTokenTransfer
+        - VTokenMint
+        - VTokenBurn
+        - ApprovalEvent
+        - RoleEvent
+        - ConfigEvent
+      abis:
+        - name: VToken
+          file: ./abis/VToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleVTokenTransfer
+        - event: Minted(indexed address,indexed address,uint256)
+          handler: handleVTokenMint
+        - event: Burned(indexed address,uint256)
+          handler: handleVTokenBurn
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleVTokenApproval
+        - event: Initialized(uint64)
+          handler: handleVTokenInitialized
+        - event: EIP712DomainChanged()
+          handler: handleEIP712DomainChanged
+        - event: Paused(address)
+          handler: handleVTokenPaused
+        - event: Unpaused(address)
+          handler: handleVTokenUnpaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleVTokenOwnershipTransferred
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleVTokenRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleRevoked
+      file: ./src/vtoken.ts
+
+  - kind: ethereum
+    name: VToken_vUSDT
+    network: sepolia
+    source:
+      address: "0xBAcDBe38Df8421d0AA90262BEB1C20d32a634fe7"
+      abi: VToken
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - VToken
+        - VTokenTransfer
+        - VTokenMint
+        - VTokenBurn
+        - ApprovalEvent
+        - RoleEvent
+        - ConfigEvent
+      abis:
+        - name: VToken
+          file: ./abis/VToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleVTokenTransfer
+        - event: Minted(indexed address,indexed address,uint256)
+          handler: handleVTokenMint
+        - event: Burned(indexed address,uint256)
+          handler: handleVTokenBurn
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleVTokenApproval
+        - event: Initialized(uint64)
+          handler: handleVTokenInitialized
+        - event: EIP712DomainChanged()
+          handler: handleEIP712DomainChanged
+        - event: Paused(address)
+          handler: handleVTokenPaused
+        - event: Unpaused(address)
+          handler: handleVTokenUnpaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleVTokenOwnershipTransferred
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleVTokenRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleRevoked
+      file: ./src/vtoken.ts
+
+  - kind: ethereum
+    name: VToken_vUSDC
+    network: sepolia
+    source:
+      address: "0x46A906fcA4487C87f0d89D2d0824EC57bdAa947D"
+      abi: VToken
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - VToken
+        - VTokenTransfer
+        - VTokenMint
+        - VTokenBurn
+        - ApprovalEvent
+        - RoleEvent
+        - ConfigEvent
+      abis:
+        - name: VToken
+          file: ./abis/VToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleVTokenTransfer
+        - event: Minted(indexed address,indexed address,uint256)
+          handler: handleVTokenMint
+        - event: Burned(indexed address,uint256)
+          handler: handleVTokenBurn
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleVTokenApproval
+        - event: Initialized(uint64)
+          handler: handleVTokenInitialized
+        - event: EIP712DomainChanged()
+          handler: handleEIP712DomainChanged
+        - event: Paused(address)
+          handler: handleVTokenPaused
+        - event: Unpaused(address)
+          handler: handleVTokenUnpaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleVTokenOwnershipTransferred
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleVTokenRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleRevoked
+      file: ./src/vtoken.ts
+
+  - kind: ethereum
+    name: VToken_vDAI
+    network: sepolia
+    source:
+      address: "0x0C156E2F45a812ad743760A88d73fB22879BC299"
+      abi: VToken
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - VToken
+        - VTokenTransfer
+        - VTokenMint
+        - VTokenBurn
+        - ApprovalEvent
+        - RoleEvent
+        - ConfigEvent
+      abis:
+        - name: VToken
+          file: ./abis/VToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleVTokenTransfer
+        - event: Minted(indexed address,indexed address,uint256)
+          handler: handleVTokenMint
+        - event: Burned(indexed address,uint256)
+          handler: handleVTokenBurn
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleVTokenApproval
+        - event: Initialized(uint64)
+          handler: handleVTokenInitialized
+        - event: EIP712DomainChanged()
+          handler: handleEIP712DomainChanged
+        - event: Paused(address)
+          handler: handleVTokenPaused
+        - event: Unpaused(address)
+          handler: handleVTokenUnpaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleVTokenOwnershipTransferred
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleVTokenRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleRevoked
+      file: ./src/vtoken.ts
+
+  - kind: ethereum
+    name: VToken_vBTC
+    network: sepolia
+    source:
+      address: "0xAeA8C2F08b10Fe1853300dF4332E462b449e19D6"
+      abi: VToken
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - VToken
+        - VTokenTransfer
+        - VTokenMint
+        - VTokenBurn
+        - ApprovalEvent
+        - RoleEvent
+        - ConfigEvent
+      abis:
+        - name: VToken
+          file: ./abis/VToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleVTokenTransfer
+        - event: Minted(indexed address,indexed address,uint256)
+          handler: handleVTokenMint
+        - event: Burned(indexed address,uint256)
+          handler: handleVTokenBurn
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleVTokenApproval
+        - event: Initialized(uint64)
+          handler: handleVTokenInitialized
+        - event: EIP712DomainChanged()
+          handler: handleEIP712DomainChanged
+        - event: Paused(address)
+          handler: handleVTokenPaused
+        - event: Unpaused(address)
+          handler: handleVTokenUnpaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleVTokenOwnershipTransferred
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleVTokenRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleRevoked
+      file: ./src/vtoken.ts
+
+  - kind: ethereum
+    name: VToken_vLINK
+    network: sepolia
+    source:
+      address: "0x1A95d5d1930b807B62B20f3cA6b2451Ffc75B454"
+      abi: VToken
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - VToken
+        - VTokenTransfer
+        - VTokenMint
+        - VTokenBurn
+        - ApprovalEvent
+        - RoleEvent
+        - ConfigEvent
+      abis:
+        - name: VToken
+          file: ./abis/VToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleVTokenTransfer
+        - event: Minted(indexed address,indexed address,uint256)
+          handler: handleVTokenMint
+        - event: Burned(indexed address,uint256)
+          handler: handleVTokenBurn
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleVTokenApproval
+        - event: Initialized(uint64)
+          handler: handleVTokenInitialized
+        - event: EIP712DomainChanged()
+          handler: handleEIP712DomainChanged
+        - event: Paused(address)
+          handler: handleVTokenPaused
+        - event: Unpaused(address)
+          handler: handleVTokenUnpaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleVTokenOwnershipTransferred
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleVTokenRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleRevoked
+      file: ./src/vtoken.ts
+
+  - kind: ethereum
+    name: VToken_vSCR
+    network: sepolia
+    source:
+      address: "0x4911Fb3923F6DA0cd4920F914991B0A742d88Bfd"
+      abi: VToken
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - VToken
+        - VTokenTransfer
+        - VTokenMint
+        - VTokenBurn
+        - ApprovalEvent
+        - RoleEvent
+        - ConfigEvent
+      abis:
+        - name: VToken
+          file: ./abis/VToken.json
+      eventHandlers:
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleVTokenTransfer
+        - event: Minted(indexed address,indexed address,uint256)
+          handler: handleVTokenMint
+        - event: Burned(indexed address,uint256)
+          handler: handleVTokenBurn
+        - event: Approval(indexed address,indexed address,uint256)
+          handler: handleVTokenApproval
+        - event: Initialized(uint64)
+          handler: handleVTokenInitialized
+        - event: Paused(address)
+          handler: handleVTokenPaused
+        - event: Unpaused(address)
+          handler: handleVTokenUnpaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleVTokenOwnershipTransferred
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleVTokenRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleVTokenRoleRevoked
+      file: ./src/vtoken.ts
+
+  - kind: ethereum
+    name: Bridge
+    network: sepolia
+    source:
+      address: "0x9347B320e42877855Cc6E66e5E5d6f18216CEEe7"
+      abi: Bridge
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - BridgeTransfer
+        - BridgeMessage
+        - BridgeConfigEvent
+        - RoleEvent
+      abis:
+        - name: Bridge
+          file: ./abis/Bridge.json
+      eventHandlers:
+        - event: TransferInitiated(indexed bytes32,indexed address,indexed address,address,uint64,address,uint256,bool,uint256,uint256)
+          handler: handleTransferInitiated
+        - event: TokenPoolRegistered(indexed address,indexed address)
+          handler: handleTokenPoolRegistered
+        - event: TokenPoolRemoved(indexed address)
+          handler: handleTokenPoolRemoved
+        - event: LimitsUpdated(uint256,uint256)
+          handler: handleLimitsUpdated
+        - event: PayMethodUpdated(bool,bool)
+          handler: handlePayMethodUpdated
+        - event: ServiceFeeUpdated(uint256,address)
+          handler: handleServiceFeeUpdated
+        - event: Paused(address)
+          handler: handleBridgePaused
+        - event: Unpaused(address)
+          handler: handleBridgeUnpaused
+        - event: RoleAdminChanged(indexed bytes32,indexed bytes32,indexed bytes32)
+          handler: handleBridgeRoleAdminChanged
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleBridgeRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleBridgeRoleRevoked
+      file: ./src/bridge.ts
+
+  - kind: ethereum
+    name: BurnMintPool_vETH
+    network: sepolia
+    source:
+      address: "0xfE81DBC7ec3AE383a7535f5aFAe817621f2f0e34"
+      abi: BurnMintTokenPool
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - BridgeTransfer
+        - PoolConfigEvent
+      abis:
+        - name: BurnMintTokenPool
+          file: ./abis/BurnMintTokenPool.json
+      eventHandlers:
+        - event: LockedOrBurned(indexed uint64,address,address,uint256)
+          handler: handleLockedOrBurned
+        - event: ReleasedOrMinted(indexed uint64,address,address,address,uint256)
+          handler: handleReleasedOrMinted
+        - event: ChainAdded(uint64,bytes,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainAdded
+        - event: ChainConfigured(uint64,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainConfigured
+        - event: ChainRemoved(uint64)
+          handler: handleChainRemoved
+        - event: RemotePoolAdded(indexed uint64,bytes)
+          handler: handleRemotePoolAdded
+        - event: RemotePoolRemoved(indexed uint64,bytes)
+          handler: handleRemotePoolRemoved
+        - event: AllowListAdd(address)
+          handler: handleAllowListAdd
+        - event: AllowListRemove(address)
+          handler: handleAllowListRemove
+        - event: RouterUpdated(address,address)
+          handler: handleRouterUpdated
+        - event: ConfigChanged((bool,uint128,uint128))
+          handler: handleConfigChanged
+        - event: RateLimitAdminSet(address)
+          handler: handleRateLimitAdminSet
+        - event: OutboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleOutboundRateLimitConsumed
+        - event: InboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleInboundRateLimitConsumed
+        - event: OwnershipTransferRequested(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferRequested
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferred
+      file: ./src/burnmint.ts
+
+  - kind: ethereum
+    name: BurnMintPool_vUSDT
+    network: sepolia
+    source:
+      address: "0x7E4E689a73e6ffAE9B761148926d3fAD3664f116"
+      abi: BurnMintTokenPool
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - BridgeTransfer
+        - PoolConfigEvent
+      abis:
+        - name: BurnMintTokenPool
+          file: ./abis/BurnMintTokenPool.json
+      eventHandlers:
+        - event: LockedOrBurned(indexed uint64,address,address,uint256)
+          handler: handleLockedOrBurned
+        - event: ReleasedOrMinted(indexed uint64,address,address,address,uint256)
+          handler: handleReleasedOrMinted
+        - event: ChainAdded(uint64,bytes,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainAdded
+        - event: ChainConfigured(uint64,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainConfigured
+        - event: ChainRemoved(uint64)
+          handler: handleChainRemoved
+        - event: RemotePoolAdded(indexed uint64,bytes)
+          handler: handleRemotePoolAdded
+        - event: RemotePoolRemoved(indexed uint64,bytes)
+          handler: handleRemotePoolRemoved
+        - event: AllowListAdd(address)
+          handler: handleAllowListAdd
+        - event: AllowListRemove(address)
+          handler: handleAllowListRemove
+        - event: RouterUpdated(address,address)
+          handler: handleRouterUpdated
+        - event: ConfigChanged((bool,uint128,uint128))
+          handler: handleConfigChanged
+        - event: RateLimitAdminSet(address)
+          handler: handleRateLimitAdminSet
+        - event: OutboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleOutboundRateLimitConsumed
+        - event: InboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleInboundRateLimitConsumed
+        - event: OwnershipTransferRequested(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferRequested
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferred
+      file: ./src/burnmint.ts
+
+  - kind: ethereum
+    name: BurnMintPool_vUSDC
+    network: sepolia
+    source:
+      address: "0xA9CceE83eA56AEB484Cf72b90FA81392719cEcab"
+      abi: BurnMintTokenPool
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - BridgeTransfer
+        - PoolConfigEvent
+      abis:
+        - name: BurnMintTokenPool
+          file: ./abis/BurnMintTokenPool.json
+      eventHandlers:
+        - event: LockedOrBurned(indexed uint64,address,address,uint256)
+          handler: handleLockedOrBurned
+        - event: ReleasedOrMinted(indexed uint64,address,address,address,uint256)
+          handler: handleReleasedOrMinted
+        - event: ChainAdded(uint64,bytes,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainAdded
+        - event: ChainConfigured(uint64,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainConfigured
+        - event: ChainRemoved(uint64)
+          handler: handleChainRemoved
+        - event: RemotePoolAdded(indexed uint64,bytes)
+          handler: handleRemotePoolAdded
+        - event: RemotePoolRemoved(indexed uint64,bytes)
+          handler: handleRemotePoolRemoved
+        - event: AllowListAdd(address)
+          handler: handleAllowListAdd
+        - event: AllowListRemove(address)
+          handler: handleAllowListRemove
+        - event: RouterUpdated(address,address)
+          handler: handleRouterUpdated
+        - event: ConfigChanged((bool,uint128,uint128))
+          handler: handleConfigChanged
+        - event: RateLimitAdminSet(address)
+          handler: handleRateLimitAdminSet
+        - event: OutboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleOutboundRateLimitConsumed
+        - event: InboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleInboundRateLimitConsumed
+        - event: OwnershipTransferRequested(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferRequested
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferred
+      file: ./src/burnmint.ts
+
+  - kind: ethereum
+    name: BurnMintPool_vDAI
+    network: sepolia
+    source:
+      address: "0xF774dC8f6D0c92e6cB2E0260dCc720c5E1571d31"
+      abi: BurnMintTokenPool
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - BridgeTransfer
+        - PoolConfigEvent
+      abis:
+        - name: BurnMintTokenPool
+          file: ./abis/BurnMintTokenPool.json
+      eventHandlers:
+        - event: LockedOrBurned(indexed uint64,address,address,uint256)
+          handler: handleLockedOrBurned
+        - event: ReleasedOrMinted(indexed uint64,address,address,address,uint256)
+          handler: handleReleasedOrMinted
+        - event: ChainAdded(uint64,bytes,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainAdded
+        - event: ChainConfigured(uint64,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainConfigured
+        - event: ChainRemoved(uint64)
+          handler: handleChainRemoved
+        - event: RemotePoolAdded(indexed uint64,bytes)
+          handler: handleRemotePoolAdded
+        - event: RemotePoolRemoved(indexed uint64,bytes)
+          handler: handleRemotePoolRemoved
+        - event: AllowListAdd(address)
+          handler: handleAllowListAdd
+        - event: AllowListRemove(address)
+          handler: handleAllowListRemove
+        - event: RouterUpdated(address,address)
+          handler: handleRouterUpdated
+        - event: ConfigChanged((bool,uint128,uint128))
+          handler: handleConfigChanged
+        - event: RateLimitAdminSet(address)
+          handler: handleRateLimitAdminSet
+        - event: OutboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleOutboundRateLimitConsumed
+        - event: InboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleInboundRateLimitConsumed
+        - event: OwnershipTransferRequested(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferRequested
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferred
+      file: ./src/burnmint.ts
+
+  - kind: ethereum
+    name: BurnMintPool_vBTC
+    network: sepolia
+    source:
+      address: "0x0Ee1e426b2DCE06a34DF8f23463e2559F75ba880"
+      abi: BurnMintTokenPool
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - BridgeTransfer
+        - PoolConfigEvent
+      abis:
+        - name: BurnMintTokenPool
+          file: ./abis/BurnMintTokenPool.json
+      eventHandlers:
+        - event: LockedOrBurned(indexed uint64,address,address,uint256)
+          handler: handleLockedOrBurned
+        - event: ReleasedOrMinted(indexed uint64,address,address,address,uint256)
+          handler: handleReleasedOrMinted
+        - event: ChainAdded(uint64,bytes,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainAdded
+        - event: ChainConfigured(uint64,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainConfigured
+        - event: ChainRemoved(uint64)
+          handler: handleChainRemoved
+        - event: RemotePoolAdded(indexed uint64,bytes)
+          handler: handleRemotePoolAdded
+        - event: RemotePoolRemoved(indexed uint64,bytes)
+          handler: handleRemotePoolRemoved
+        - event: AllowListAdd(address)
+          handler: handleAllowListAdd
+        - event: AllowListRemove(address)
+          handler: handleAllowListRemove
+        - event: RouterUpdated(address,address)
+          handler: handleRouterUpdated
+        - event: ConfigChanged((bool,uint128,uint128))
+          handler: handleConfigChanged
+        - event: RateLimitAdminSet(address)
+          handler: handleRateLimitAdminSet
+        - event: OutboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleOutboundRateLimitConsumed
+        - event: InboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleInboundRateLimitConsumed
+        - event: OwnershipTransferRequested(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferRequested
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferred
+      file: ./src/burnmint.ts
+
+  - kind: ethereum
+    name: BurnMintPool_vLINK
+    network: sepolia
+    source:
+      address: "0x4BE437a25237C511d316a8c8Bc594b422abAd2d1"
+      abi: BurnMintTokenPool
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - BridgeTransfer
+        - PoolConfigEvent
+      abis:
+        - name: BurnMintTokenPool
+          file: ./abis/BurnMintTokenPool.json
+      eventHandlers:
+        - event: LockedOrBurned(indexed uint64,address,address,uint256)
+          handler: handleLockedOrBurned
+        - event: ReleasedOrMinted(indexed uint64,address,address,address,uint256)
+          handler: handleReleasedOrMinted
+        - event: ChainAdded(uint64,bytes,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainAdded
+        - event: ChainConfigured(uint64,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainConfigured
+        - event: ChainRemoved(uint64)
+          handler: handleChainRemoved
+        - event: RemotePoolAdded(indexed uint64,bytes)
+          handler: handleRemotePoolAdded
+        - event: RemotePoolRemoved(indexed uint64,bytes)
+          handler: handleRemotePoolRemoved
+        - event: AllowListAdd(address)
+          handler: handleAllowListAdd
+        - event: AllowListRemove(address)
+          handler: handleAllowListRemove
+        - event: RouterUpdated(address,address)
+          handler: handleRouterUpdated
+        - event: ConfigChanged((bool,uint128,uint128))
+          handler: handleConfigChanged
+        - event: RateLimitAdminSet(address)
+          handler: handleRateLimitAdminSet
+        - event: OutboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleOutboundRateLimitConsumed
+        - event: InboundRateLimitConsumed(indexed uint64,address,uint256)
+          handler: handleInboundRateLimitConsumed
+        - event: OwnershipTransferRequested(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferRequested
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferred
+      file: ./src/burnmint.ts
+
+  - kind: ethereum
+    name: BurnMintPool_vSCR
+    network: sepolia
+    source:
+      address: "0xf985F69e6bE82F3EDeF82A2FE256b0eF4d114bd0"
+      abi: BurnMintTokenPool
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - BridgeTransfer
+        - PoolConfigEvent
+      abis:
+        - name: BurnMintTokenPool
+          file: ./abis/BurnMintTokenPool.json
+      eventHandlers:
+        - event: LockedOrBurned(indexed uint64,address,address,uint256)
+          handler: handleLockedOrBurned
+        - event: ReleasedOrMinted(indexed uint64,address,address,address,uint256)
+          handler: handleReleasedOrMinted
+        - event: ChainAdded(uint64,bytes,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainAdded
+        - event: ChainConfigured(uint64,(bool,uint128,uint128),(bool,uint128,uint128))
+          handler: handleChainConfigured
+        - event: ChainRemoved(uint64)
+          handler: handleChainRemoved
+        - event: RemotePoolAdded(indexed uint64,bytes)
+          handler: handleRemotePoolAdded
+        - event: RemotePoolRemoved(indexed uint64,bytes)
+          handler: handleRemotePoolRemoved
+        - event: AllowListAdd(address)
+          handler: handleAllowListAdd
+        - event: AllowListRemove(address)
+          handler: handleAllowListRemove
+        - event: RouterUpdated(address,address)
+          handler: handleRouterUpdated
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handlePoolOwnershipTransferred
+      file: ./src/burnmint.ts
+  - kind: ethereum
+    name: ChainlinkOracle
+    network: sepolia
+    source:
+      address: "0x7e8F17B349fD0f6b8A89d7c0640F232E15C68Ff3"
+      abi: ChainlinkOracle
+      startBlock: 9573280
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - ConfigEvent
+      abis:
+        - name: ChainlinkOracle
+          file: ./abis/ChainlinkOracle.json
+      eventHandlers:
+        - event: USDFeedUpdated(indexed address,indexed address,uint8,uint88)
+          handler: handleUSDFeedUpdated
+      file: ./src/oracle.ts

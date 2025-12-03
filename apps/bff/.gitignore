@@ -1,0 +1,11 @@
+target/
+target_test-classes/
+.idea/
+.project
+.classpath
+.settings/
+*.iml
+*.log
+logs/
+.DS_Store
+node_modules/

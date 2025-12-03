@@ -1,0 +1,37 @@
+# 顶部导航（全站固定）
+Home -> /
+Swap -> /swap
+Liquidity Pool(hover → My liquidity) 
+Faucet 
+Bridge -> /bridge
+RightCapsule: "Network: Mock"（仅展示，不随页面变化）
+Connect Wallet -> 仅弹提示 "仅 UI"
+
+# Pools（资金池）
+在 /pools：点击 "My Liquidity" -> /pools/mine
+在 /pools：点击 "Claim Reward" -> /pools/remove
+在 /pools：列表的 “Add” 快捷按钮（如有） -> /pools/add
+
+# Swap
+点击设置图标 -> 打开设置弹层（仅 UI：Auto Slippage 开关；Manual 0.1% / 0.5% / 1.0% / Custom[禁用]）
+切换箭头 -> 仅交换 TokenIn/TokenOut 的显示
+点击 “Swap” -> 仅弹提示（不发交易）
+展开详情 -> 显示 Price Impact / Min/Max Received / Protocol Fee / Network Fee / Routing Source（占位值）
+
+# Faucet
+网络与 Token 的下拉仅 UI；点击 “Claim” -> 仅弹提示
+
+# Bridge
+From/To 网络切换与 Token/Amount 仅 UI；点击 “Transfer” -> 显示进度占位（Tx id / Waiting…）
+
+# My Liquidity
+查看持仓列表（仅 UI）；若点击某项 “claim reward” -> /pools/remove   点击某项 “new” -> /pools/add  
+
+# Add Liquidity
+选择池/金额后点击 “Preview” -> 展示占位数据（share、priceImpactBps）；点击 “Add Liquidity” -> 仅弹提示
+网络不匹配 -> 顶部提示条 + 禁用按钮
+
+# Remove Liquidity
+拖动比例或输入比例 -> 实时更新 “You will receive” 占位；
+点击 “Remove Liquidity” -> 仅弹提示；
+显示 Gas Fee / Slippage（可 Edit 打开设置弹层）；黄色注意事项卡片。
