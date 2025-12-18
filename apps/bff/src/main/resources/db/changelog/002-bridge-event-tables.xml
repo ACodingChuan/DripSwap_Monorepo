@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Bridge Entities: 2 tables -->
+
+    <!-- 8. bridge_transfers -->
+    <changeSet id="002-001-bridge-transfers" author="system">
+        <createTable tableName="bridge_transfers">
+            <column name="id" type="VARCHAR(100)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="tx_hash" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="block_number" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="timestamp" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="message_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="sender" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="token" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="pool" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="amount" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="dst_selector" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="receiver_chain_name" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="receiver" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="pay_in_link" type="BOOLEAN"><constraints nullable="false"/></column>
+            <column name="ccip_fee" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="service_fee_paid" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="bridge_transfers" indexName="idx_bridge_transfers_chain_timestamp">
+            <column name="chain_id"/><column name="timestamp" descending="true"/>
+        </createIndex>
+        <createIndex tableName="bridge_transfers" indexName="idx_bridge_transfers_message_id"><column name="message_id"/></createIndex>
+        <createIndex tableName="bridge_transfers" indexName="idx_bridge_transfers_sender"><column name="sender"/></createIndex>
+    </changeSet>
+
+    <!-- 9. bridge_config_events -->
+    <changeSet id="002-002-bridge-config-events" author="system">
+        <createTable tableName="bridge_config_events">
+            <column name="id" type="VARCHAR(100)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="event_name" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="token" type="VARCHAR(66)"/>
+            <column name="pool" type="VARCHAR(66)"/>
+            <column name="min_amount" type="NUMERIC"/>
+            <column name="max_amount" type="NUMERIC"/>
+            <column name="native_allowed" type="BOOLEAN"/>
+            <column name="link_allowed" type="BOOLEAN"/>
+            <column name="new_fee" type="NUMERIC"/>
+            <column name="new_collector" type="VARCHAR(66)"/>
+            <column name="block_number" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="timestamp" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="transaction_hash" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="bridge_config_events" indexName="idx_bridge_config_chain_timestamp">
+            <column name="chain_id"/><column name="timestamp" descending="true"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Event Entities: 3 tables -->
+
+    <!-- 10. mints -->
+    <changeSet id="002-003-mints" author="system">
+        <createTable tableName="mints">
+            <column name="id" type="VARCHAR(100)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="transaction_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="timestamp" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="pair_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="to_address" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="liquidity" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="sender" type="VARCHAR(66)"/>
+            <column name="amount0" type="NUMERIC"/>
+            <column name="amount1" type="NUMERIC"/>
+            <column name="log_index" type="BIGINT"/>
+            <column name="amount_usd" type="NUMERIC"/>
+            <column name="fee_to" type="VARCHAR(66)"/>
+            <column name="fee_liquidity" type="NUMERIC"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="mints" indexName="idx_mints_chain_timestamp">
+            <column name="chain_id"/><column name="timestamp" descending="true"/>
+        </createIndex>
+        <createIndex tableName="mints" indexName="idx_mints_pair"><column name="pair_id"/></createIndex>
+    </changeSet>
+
+    <!-- 11. burns -->
+    <changeSet id="002-004-burns" author="system">
+        <createTable tableName="burns">
+            <column name="id" type="VARCHAR(100)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="transaction_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="timestamp" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="pair_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="sender" type="VARCHAR(66)"/>
+            <column name="liquidity" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="amount0" type="NUMERIC"/>
+            <column name="amount1" type="NUMERIC"/>
+            <column name="to_address" type="VARCHAR(66)"/>
+            <column name="log_index" type="BIGINT"/>
+            <column name="amount_usd" type="NUMERIC"/>
+            <column name="fee_to" type="VARCHAR(66)"/>
+            <column name="fee_liquidity" type="NUMERIC"/>
+            <column name="needs_complete" type="BOOLEAN" defaultValueBoolean="true"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="burns" indexName="idx_burns_chain_timestamp">
+            <column name="chain_id"/><column name="timestamp" descending="true"/>
+        </createIndex>
+        <createIndex tableName="burns" indexName="idx_burns_pair"><column name="pair_id"/></createIndex>
+    </changeSet>
+
+    <!-- 12. swaps -->
+    <changeSet id="002-005-swaps" author="system">
+        <createTable tableName="swaps">
+            <column name="id" type="VARCHAR(100)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="transaction_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="timestamp" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="pair_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="sender" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="from_address" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="to_address" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="amount0_in" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="amount1_in" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="amount0_out" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="amount1_out" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="log_index" type="BIGINT"/>
+            <column name="amount_usd" type="NUMERIC"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="swaps" indexName="idx_swaps_chain_timestamp">
+            <column name="chain_id"/><column name="timestamp" descending="true"/>
+        </createIndex>
+        <createIndex tableName="swaps" indexName="idx_swaps_pair"><column name="pair_id"/></createIndex>
+    </changeSet>
+
+</databaseChangeLog>

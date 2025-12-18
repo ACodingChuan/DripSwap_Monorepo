@@ -1,0 +1,61 @@
+specVersion: 0.0.8
+description: DripSwap Uniswap V2-Tokens subgraph (scroll-sepolia)
+repository: https://github.com/ACodingChuan/DripSwap_Monorepo
+schema:
+  file: ../src/v2-tokens/schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: Factory
+    network: scroll-sepolia
+    source:
+      address: '0x6c9258026a9272368e49bbb7d0a78c17bbe284bf'
+      startBlock: 14731854 
+      abi: Factory
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ../src/v2-tokens/mappings/factory.ts
+      entities:
+        - Pair
+        - Token
+      abis:
+        - name: Factory
+          file: ../abis/factory.json
+        - name: ERC20
+          file: ../abis/ERC20.json
+        - name: ERC20SymbolBytes
+          file: ../abis/ERC20SymbolBytes.json
+        - name: ERC20NameBytes
+          file: ../abis/ERC20NameBytes.json
+        - name: Oracle
+          file: ../abis/oracle.json
+      eventHandlers:
+        - event: PairCreated(indexed address,indexed address,address,uint256)
+          handler: handleNewPair
+templates:
+  - kind: ethereum/contract
+    name: Pair
+    network: scroll-sepolia
+    source:
+      abi: Pair
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ../src/v2-tokens/mappings/core.ts
+      entities:
+        - Pair
+        - Token
+      abis:
+        - name: Pair
+          file: ../abis/pair.json
+        - name: Factory
+          file: ../abis/factory.json
+        - name: Oracle
+          file: ../abis/oracle.json
+      eventHandlers:
+        - event: Swap(indexed address,uint256,uint256,uint256,uint256,indexed address)
+          handler: handleSwap
+        - event: Sync(uint112,uint112)
+          handler: handleSync

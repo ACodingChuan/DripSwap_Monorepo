@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Sync Control: 2 tables -->
+
+    <!-- 19. sync_status -->
+    <changeSet id="004-001-sync-status" author="system">
+        <createTable tableName="sync_status">
+            <column name="key" type="VARCHAR(100)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="entity_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="last_synced_block" type="BIGINT"/>
+            <column name="last_synced_timestamp" type="INTEGER"/>
+            <column name="last_synced_id" type="VARCHAR(100)"/>
+            <column name="sync_start_time" type="TIMESTAMP"/>
+            <column name="sync_end_time" type="TIMESTAMP"/>
+            <column name="sync_status" type="VARCHAR(20)" defaultValue="pending"><constraints nullable="false"/></column>
+            <column name="error_message" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="sync_status" indexName="idx_sync_status_chain_entity">
+            <column name="chain_id"/><column name="entity_type"/>
+        </createIndex>
+        <createIndex tableName="sync_status" indexName="idx_sync_status_status"><column name="sync_status"/></createIndex>
+    </changeSet>
+
+    <!-- 20. sync_errors -->
+    <changeSet id="004-002-sync-errors" author="system">
+        <createTable tableName="sync_errors">
+            <column name="id" type="BIGSERIAL"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="entity_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="entity_id" type="VARCHAR(100)"/>
+            <column name="error_type" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="error_message" type="TEXT"><constraints nullable="false"/></column>
+            <column name="retry_count" type="INTEGER" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="resolved" type="BOOLEAN" defaultValueBoolean="false"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="sync_errors" indexName="idx_sync_errors_chain_entity">
+            <column name="chain_id"/><column name="entity_type"/>
+        </createIndex>
+        <createIndex tableName="sync_errors" indexName="idx_sync_errors_resolved"><column name="resolved"/></createIndex>
+        <createIndex tableName="sync_errors" indexName="idx_sync_errors_created_at">
+            <column name="created_at" descending="true"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

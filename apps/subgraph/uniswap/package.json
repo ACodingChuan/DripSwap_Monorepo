@@ -1,0 +1,23 @@
+{
+  "name": "dripswap-uniswap-subgraphs",
+  "private": true,
+  "packageManager": "pnpm@10.16.1",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "deploy:local:v2:sepolia": "export GRAPH_NODE=http://127.0.0.1:8001 && export GRAPH_IPFS=http://127.0.0.1:5001 && export GRAPH_NAME=dripswap_v2_sepolia_local && graph codegen subgraphs/v2-sepolia.yaml && graph build subgraphs/v2-sepolia.yaml && graph deploy --node $GRAPH_NODE --ipfs $GRAPH_IPFS $GRAPH_NAME subgraphs/v2-sepolia.yaml",
+    "deploy:local:v2t:sepolia": "export GRAPH_NODE=http://127.0.0.1:8001 && export GRAPH_IPFS=http://127.0.0.1:5001 && export GRAPH_NAME=dripswap_v2_tokens_sepolia_local && graph codegen subgraphs/v2-tokens-sepolia.yaml && graph build subgraphs/v2-tokens-sepolia.yaml && graph deploy --node $GRAPH_NODE --ipfs $GRAPH_IPFS $GRAPH_NAME subgraphs/v2-tokens-sepolia.yaml",
+    "deploy:local:v2:scroll": "export GRAPH_NODE=http://127.0.0.1:8001 && export GRAPH_IPFS=http://127.0.0.1:5001 && export GRAPH_NAME=dripswap_v2_scroll_local && graph codegen subgraphs/v2-scroll-sepolia.yaml && graph build subgraphs/v2-scroll-sepolia.yaml && graph deploy --node $GRAPH_NODE --ipfs $GRAPH_IPFS $GRAPH_NAME subgraphs/v2-scroll-sepolia.yaml",
+    "deploy:local:v2t:scroll": "export GRAPH_NODE=http://127.0.0.1:8001 && export GRAPH_IPFS=http://127.0.0.1:5001 && export GRAPH_NAME=dripswap_v2_tokens_scroll_local && graph codegen subgraphs/v2-tokens-scroll-sepolia.yaml && graph build subgraphs/v2-tokens-scroll-sepolia.yaml && graph deploy --node $GRAPH_NODE --ipfs $GRAPH_IPFS $GRAPH_NAME subgraphs/v2-tokens-scroll-sepolia.yaml",
+    "deploy:studio:v2:sepolia": "export GRAPH_NODE=https://api.studio.thegraph.com/deploy/ && export GRAPH_NAME=dripswap-v-2-sepolia && graph codegen subgraphs/v2-sepolia.yaml && graph build subgraphs/v2-sepolia.yaml && graph deploy --node $GRAPH_NODE $GRAPH_NAME subgraphs/v2-sepolia.yaml",
+    "deploy:studio:v2t:sepolia": "export GRAPH_NODE=https://api.studio.thegraph.com/deploy/ && export GRAPH_NAME=dripswap-v-2-tokens-sepolia && graph codegen subgraphs/v2-tokens-sepolia.yaml && graph build subgraphs/v2-tokens-sepolia.yaml && graph deploy --node $GRAPH_NODE $GRAPH_NAME subgraphs/v2-tokens-sepolia.yaml",
+    "deploy:studio:v2:scroll": "export GRAPH_NODE=https://api.studio.thegraph.com/deploy/ && export GRAPH_NAME=dripswap_v2_scroll_sepolia && graph codegen subgraphs/v2-scroll-sepolia.yaml && graph build subgraphs/v2-scroll-sepolia.yaml && graph deploy --node $GRAPH_NODE $GRAPH_NAME subgraphs/v2-scroll-sepolia.yaml",
+    "deploy:studio:v2t:scroll": "export GRAPH_NODE=https://api.studio.thegraph.com/deploy/ && export GRAPH_NAME=drip-swap-v-2-tokens-scroll-sepolia && graph codegen subgraphs/v2-tokens-scroll-sepolia.yaml && graph build subgraphs/v2-tokens-scroll-sepolia.yaml && graph deploy --node $GRAPH_NODE $GRAPH_NAME subgraphs/v2-tokens-scroll-sepolia.yaml"
+  },
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "0.98.1",
+    "@graphprotocol/graph-ts": "0.35.1"
+  }
+}

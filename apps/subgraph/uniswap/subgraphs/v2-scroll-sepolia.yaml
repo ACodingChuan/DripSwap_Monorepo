@@ -1,0 +1,98 @@
+specVersion: 0.0.8
+description: DripSwap Uniswap V2 subgraph (scroll-sepolia)
+repository: https://github.com/ACodingChuan/DripSwap_Monorepo
+schema:
+  file: ../src/v2/schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: Factory
+    network: scroll-sepolia
+    source:
+      address: '0x6c9258026a9272368e49bbb7d0a78c17bbe284bf'
+      startBlock: 14731854
+      abi: Factory
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ../src/v2/mappings/factory.ts
+      entities:
+        - Pair
+        - Token
+      abis:
+        - name: Factory
+          file: ../abis/factory.json
+        - name: ERC20
+          file: ../abis/ERC20.json
+        - name: ERC20SymbolBytes
+          file: ../abis/ERC20SymbolBytes.json
+        - name: ERC20NameBytes
+          file: ../abis/ERC20NameBytes.json
+        - name: Oracle
+          file: ../abis/oracle.json
+      eventHandlers:
+        - event: PairCreated(indexed address,indexed address,address,uint256)
+          handler: handleNewPair
+  - kind: ethereum/contract
+    name: Bridge
+    network: scroll-sepolia
+    source:
+      address: '0xBE2CcDA786BF69B0AE4251E6b34dF212CEF4F645'
+      startBlock: 14731854
+      abi: Bridge
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ../src/v2/mappings/bridge.ts
+      entities:
+        - BridgeTransfer
+        - BridgeConfigEvent
+      abis:
+        - name: Bridge
+          file: ../abis/bridge.json
+      eventHandlers:
+        - event: TransferInitiated(indexed bytes32,indexed address,indexed address,address,uint64,address,uint256,bool,uint256,uint256)
+          handler: handleTransferInitiated
+        - event: TokenPoolRegistered(indexed address,indexed address)
+          handler: handleTokenPoolRegistered
+        - event: TokenPoolRemoved(indexed address)
+          handler: handleTokenPoolRemoved
+        - event: LimitsUpdated(uint256,uint256)
+          handler: handleLimitsUpdated
+        - event: PayMethodUpdated(bool,bool)
+          handler: handlePayMethodUpdated
+        - event: ServiceFeeUpdated(uint256,address)
+          handler: handleServiceFeeUpdated
+templates:
+  - kind: ethereum/contract
+    name: Pair
+    network: scroll-sepolia
+    source:
+      abi: Pair
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      file: ../src/v2/mappings/core.ts
+      entities:
+        - Pair
+        - Token
+      abis:
+        - name: Pair
+          file: ../abis/pair.json
+        - name: Factory
+          file: ../abis/factory.json
+        - name: Oracle
+          file: ../abis/oracle.json
+      eventHandlers:
+        - event: Mint(indexed address,uint256,uint256)
+          handler: handleMint
+        - event: Burn(indexed address,uint256,uint256,indexed address)
+          handler: handleBurn
+        - event: Swap(indexed address,uint256,uint256,uint256,uint256,indexed address)
+          handler: handleSwap
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+        - event: Sync(uint112,uint112)
+          handler: handleSync

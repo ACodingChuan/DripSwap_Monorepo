@@ -54,7 +54,10 @@ const BridgePage = () => {
   }, [fromNetworkId]);
 
   // --- 2. Token & Amount State ---
-  const tokens = useMemo(() => getAllTokens(fromNetworkId), [fromNetworkId]);
+  const tokens = useMemo(
+    () => getAllTokens(fromNetworkId).filter((t) => t.symbol !== 'vLINK'),
+    [fromNetworkId]
+  );
   const [selectedTokenAddress, setSelectedTokenAddress] = useState<string>('');
   const [amount, setAmount] = useState('');
   const [feeToken, setFeeToken] = useState<'NATIVE' | 'LINK'>('NATIVE');
@@ -418,7 +421,7 @@ const BridgePage = () => {
               </p>
               {feeToken === 'LINK' && (
                 <p className="text-xs text-blue-600 dark:text-blue-400">
-                  Need LINK? Get testnet LINK from{' '}
+                  LINK is the real Chainlink LINK token used for CCIP fees. Need LINK? Get testnet LINK from{' '}
                   <a
                     href="https://faucets.chain.link/"
                     target="_blank"

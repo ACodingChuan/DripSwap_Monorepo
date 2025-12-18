@@ -40,3 +40,6 @@ apps/bff/.settings/
 .vscode/
 .husky/
 .pnpm-store/
+
+v2-subgraph
+interface

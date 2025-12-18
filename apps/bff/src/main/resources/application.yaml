@@ -8,6 +8,13 @@ spring:
     password: ${BFF_DB_PASSWORD:dripswap}
     driver-class-name: org.postgresql.Driver
 
+  # Graph-node 只读数据源（需在代码中手动配置 DataSource，不走 JPA/Liquibase）
+  datasource-graph:
+    url: ${GRAPH_DB_URL:jdbc:postgresql://localhost:5432/graph_node}
+    username: ${GRAPH_DB_USER:graph}
+    password: ${GRAPH_DB_PASSWORD:graph}
+    driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -17,7 +24,7 @@ spring:
 
   liquibase:
     enabled: true
-    change-log: classpath:db/changelog/001-init.xml
+    change-log: classpath:db/changelog/db.changelog-master.xml
 
   redis:
     host: ${BFF_REDIS_HOST:localhost}
@@ -43,17 +50,20 @@ server:
   port: ${BFF_SERVER_PORT:8080}
 
 subgraph:
-  sync-interval-ms: ${SUBGRAPH_SYNC_INTERVAL_MS:120000} # 2 分钟
   batch-size: ${SUBGRAPH_BATCH_SIZE:500}
   retry-count: ${SUBGRAPH_RETRY_COUNT:3}
   chains:
     - id: sepolia
+      chain-id: 11155111
       enabled: true
-      endpoint: "${SUBGRAPH_SEPOLIA_ENDPOINT:https://api.studio.thegraph.com/query/1716244/sepolia/version/latest}"
+      endpoint: "https://api.studio.thegraph.com/query/1718761/dripswap-v-2-sepolia/version/latest"
+      endpoint-v2-tokens: "https://api.studio.thegraph.com/query/1718761/dripswap-v-2-tokens-sepolia/version/latest"
       start-block: 9573280
     - id: scroll-sepolia
-      enabled: false
-      endpoint: "${SUBGRAPH_SCROLL_SEPOLIA_ENDPOINT:}"
+      chain-id: 534351
+      enabled: true
+      endpoint: "https://api.studio.thegraph.com/query/1716244/dripswap_v2_scroll_sepolia/version/latest"
+      endpoint-v2-tokens: "https://api.studio.thegraph.com/query/1716244/drip-swap-v-2-tokens-scroll-sepolia/version/latest"
       start-block: 0
 
 # DripSwap multi-chain configuration

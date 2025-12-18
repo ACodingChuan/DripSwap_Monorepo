@@ -64,8 +64,23 @@ public class SubgraphProperties {
 
     public static class ChainConfig {
         private String id;
+        /**
+         * EVM chain id (e.g. 11155111).
+         */
+        private long chainId = 0L;
         private boolean enabled = false;
+        /**
+         * Deprecated: single endpoint (treated as V2 endpoint).
+         */
         private String endpoint;
+        /**
+         * Uniswap V2-style subgraph endpoint (facts + snapshots).
+         */
+        private String endpointV2;
+        /**
+         * V2 tokens/pricing endpoint (minute-level token series).
+         */
+        private String endpointV2Tokens;
         private long startBlock = 0L;
 
         public String getId() {
@@ -90,6 +105,30 @@ public class SubgraphProperties {
 
         public void setEndpoint(String endpoint) {
             this.endpoint = endpoint;
+        }
+
+        public long getChainId() {
+            return chainId;
+        }
+
+        public void setChainId(long chainId) {
+            this.chainId = chainId;
+        }
+
+        public String getEndpointV2() {
+            return endpointV2 != null && !endpointV2.isBlank() ? endpointV2 : endpoint;
+        }
+
+        public void setEndpointV2(String endpointV2) {
+            this.endpointV2 = endpointV2;
+        }
+
+        public String getEndpointV2Tokens() {
+            return endpointV2Tokens;
+        }
+
+        public void setEndpointV2Tokens(String endpointV2Tokens) {
+            this.endpointV2Tokens = endpointV2Tokens;
         }
 
         public long getStartBlock() {

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Core Entities: 7 tables -->
+
+    <!-- 1. uniswap_factory -->
+    <changeSet id="001-001-uniswap-factory" author="system">
+        <createTable tableName="uniswap_factory">
+            <column name="id" type="VARCHAR(66)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="pair_count" type="INTEGER" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_volume_usd" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_volume_eth" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="untracked_volume_usd" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_liquidity_usd" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_liquidity_eth" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="tx_count" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="uniswap_factory" indexName="idx_factory_chain"><column name="chain_id"/></createIndex>
+    </changeSet>
+
+    <!-- 2. tokens -->
+    <changeSet id="001-002-tokens" author="system">
+        <createTable tableName="tokens">
+            <column name="id" type="VARCHAR(66)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="symbol" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="name" type="VARCHAR(255)"><constraints nullable="false"/></column>
+            <column name="decimals" type="INTEGER"><constraints nullable="false"/></column>
+            <column name="total_supply" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="trade_volume" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="trade_volume_usd" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="untracked_volume_usd" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="tx_count" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_liquidity" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="derived_eth" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="last_minute_archived" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="last_hour_archived" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="minute_array" type="TEXT" defaultValue="[]"><constraints nullable="false"/></column>
+            <column name="hour_array" type="TEXT" defaultValue="[]"><constraints nullable="false"/></column>
+            <column name="last_minute_recorded" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="last_hour_recorded" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="tokens" indexName="idx_tokens_chain"><column name="chain_id"/></createIndex>
+        <createIndex tableName="tokens" indexName="idx_tokens_symbol"><column name="symbol"/></createIndex>
+    </changeSet>
+
+    <!-- 3. pairs -->
+    <changeSet id="001-003-pairs" author="system">
+        <createTable tableName="pairs">
+            <column name="id" type="VARCHAR(66)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="token0_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="token1_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="reserve0" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="reserve1" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="total_supply" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="reserve_eth" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="reserve_usd" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="tracked_reserve_eth" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="token0_price" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="token1_price" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="volume_token0" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="volume_token1" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="volume_usd" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="untracked_volume_usd" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="tx_count" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="liquidity_provider_count" type="BIGINT" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="created_at_timestamp" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_at_block_number" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="pairs" indexName="idx_pairs_chain"><column name="chain_id"/></createIndex>
+        <createIndex tableName="pairs" indexName="idx_pairs_token0"><column name="token0_id"/></createIndex>
+        <createIndex tableName="pairs" indexName="idx_pairs_token1"><column name="token1_id"/></createIndex>
+    </changeSet>
+
+    <!-- 4. bundle -->
+    <changeSet id="001-004-bundle" author="system">
+        <createTable tableName="bundle">
+            <column name="id" type="VARCHAR(10)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="eth_price" type="NUMERIC" defaultValueNumeric="0"><constraints nullable="false"/></column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="bundle" indexName="idx_bundle_chain"><column name="chain_id"/></createIndex>
+    </changeSet>
+
+    <!-- 5. pair_token_lookup -->
+    <changeSet id="001-005-pair-token-lookup" author="system">
+        <createTable tableName="pair_token_lookup">
+            <column name="id" type="VARCHAR(133)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="pair_id" type="VARCHAR(66)"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="pair_token_lookup" indexName="idx_pair_token_lookup_pair"><column name="pair_id"/></createIndex>
+        <createIndex tableName="pair_token_lookup" indexName="idx_pair_token_lookup_chain"><column name="chain_id"/></createIndex>
+    </changeSet>
+
+    <!-- 6. users -->
+    <changeSet id="001-006-users" author="system">
+        <createTable tableName="users">
+            <column name="id" type="VARCHAR(66)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="users" indexName="idx_users_chain"><column name="chain_id"/></createIndex>
+    </changeSet>
+
+    <!-- 7. transactions -->
+    <changeSet id="001-007-transactions" author="system">
+        <createTable tableName="transactions">
+            <column name="id" type="VARCHAR(66)"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="chain_id" type="VARCHAR(50)"><constraints nullable="false"/></column>
+            <column name="block_number" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="timestamp" type="BIGINT"><constraints nullable="false"/></column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"><constraints nullable="false"/></column>
+        </createTable>
+        <createIndex tableName="transactions" indexName="idx_transactions_chain_timestamp">
+            <column name="chain_id"/><column name="timestamp" descending="true"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

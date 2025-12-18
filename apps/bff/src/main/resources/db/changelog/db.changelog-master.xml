@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <include file="db/changelog/001-core-entities.xml"/>
+    <include file="db/changelog/002-bridge-event-tables.xml"/>
+    <include file="db/changelog/003-time-aggregates.xml"/>
+    <include file="db/changelog/004-sync-control.xml"/>
+    <include file="db/changelog/005-multichain-primary-keys.xml"/>
+
+</databaseChangeLog>

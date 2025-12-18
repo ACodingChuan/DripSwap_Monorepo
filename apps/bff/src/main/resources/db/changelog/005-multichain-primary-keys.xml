@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Multi-chain PK fix: use (chain_id, id) to avoid cross-chain ID collisions -->
+
+    <changeSet id="005-001-multichain-primary-keys" author="system">
+        <!-- Core entities -->
+        <dropPrimaryKey tableName="uniswap_factory"/>
+        <addPrimaryKey tableName="uniswap_factory" columnNames="chain_id,id" constraintName="pk_uniswap_factory_chain_id_id"/>
+
+        <dropPrimaryKey tableName="tokens"/>
+        <addPrimaryKey tableName="tokens" columnNames="chain_id,id" constraintName="pk_tokens_chain_id_id"/>
+
+        <dropPrimaryKey tableName="pairs"/>
+        <addPrimaryKey tableName="pairs" columnNames="chain_id,id" constraintName="pk_pairs_chain_id_id"/>
+
+        <dropPrimaryKey tableName="bundle"/>
+        <addPrimaryKey tableName="bundle" columnNames="chain_id,id" constraintName="pk_bundle_chain_id_id"/>
+
+        <dropPrimaryKey tableName="pair_token_lookup"/>
+        <addPrimaryKey tableName="pair_token_lookup" columnNames="chain_id,id" constraintName="pk_pair_token_lookup_chain_id_id"/>
+
+        <dropPrimaryKey tableName="users"/>
+        <addPrimaryKey tableName="users" columnNames="chain_id,id" constraintName="pk_users_chain_id_id"/>
+
+        <dropPrimaryKey tableName="transactions"/>
+        <addPrimaryKey tableName="transactions" columnNames="chain_id,id" constraintName="pk_transactions_chain_id_id"/>
+
+        <!-- Bridge + event entities -->
+        <dropPrimaryKey tableName="bridge_transfers"/>
+        <addPrimaryKey tableName="bridge_transfers" columnNames="chain_id,id" constraintName="pk_bridge_transfers_chain_id_id"/>
+
+        <dropPrimaryKey tableName="bridge_config_events"/>
+        <addPrimaryKey tableName="bridge_config_events" columnNames="chain_id,id" constraintName="pk_bridge_config_events_chain_id_id"/>
+
+        <dropPrimaryKey tableName="mints"/>
+        <addPrimaryKey tableName="mints" columnNames="chain_id,id" constraintName="pk_mints_chain_id_id"/>
+
+        <dropPrimaryKey tableName="burns"/>
+        <addPrimaryKey tableName="burns" columnNames="chain_id,id" constraintName="pk_burns_chain_id_id"/>
+
+        <dropPrimaryKey tableName="swaps"/>
+        <addPrimaryKey tableName="swaps" columnNames="chain_id,id" constraintName="pk_swaps_chain_id_id"/>
+
+        <!-- Time aggregates -->
+        <dropPrimaryKey tableName="uniswap_day_data"/>
+        <addPrimaryKey tableName="uniswap_day_data" columnNames="chain_id,id" constraintName="pk_uniswap_day_data_chain_id_id"/>
+
+        <dropPrimaryKey tableName="pair_day_data"/>
+        <addPrimaryKey tableName="pair_day_data" columnNames="chain_id,id" constraintName="pk_pair_day_data_chain_id_id"/>
+
+        <dropPrimaryKey tableName="pair_hour_data"/>
+        <addPrimaryKey tableName="pair_hour_data" columnNames="chain_id,id" constraintName="pk_pair_hour_data_chain_id_id"/>
+
+        <dropPrimaryKey tableName="token_day_data"/>
+        <addPrimaryKey tableName="token_day_data" columnNames="chain_id,id" constraintName="pk_token_day_data_chain_id_id"/>
+
+        <dropPrimaryKey tableName="token_hour_data"/>
+        <addPrimaryKey tableName="token_hour_data" columnNames="chain_id,id" constraintName="pk_token_hour_data_chain_id_id"/>
+
+        <dropPrimaryKey tableName="token_minute_data"/>
+        <addPrimaryKey tableName="token_minute_data" columnNames="chain_id,id" constraintName="pk_token_minute_data_chain_id_id"/>
+    </changeSet>
+
+</databaseChangeLog>
+
