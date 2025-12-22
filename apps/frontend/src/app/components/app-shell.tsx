@@ -37,6 +37,7 @@ const SUPPORTED_CHAINS = [sepolia, scrollSepolia];
 const NAV_ITEMS = [
   { label: 'Home', path: '/' },
   { label: 'Swap', path: '/swap' },
+  { label: 'Explore', path: '/explore' },
   {
     label: 'Liquidity',
     path: '/pools',

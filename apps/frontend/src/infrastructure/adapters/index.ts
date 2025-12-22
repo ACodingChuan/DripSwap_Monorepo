@@ -9,6 +9,10 @@ import type { FaucetPort } from '@/domain/ports/faucet-port';
 import { FaucetBffAdapter } from './faucet.bff';
 import type { BridgePort } from '@/domain/ports/bridge-port';
 import { BridgeBffAdapter } from './bridge.bff';
+import type { ExplorePort } from '@/domain/ports/explore-port';
+import { ExploreBffAdapter } from './explore.bff';
+import type { TokenPort } from '@/domain/ports/token-port';
+import { TokenBffAdapter } from './token.bff';
 
 export function resolveSwapAdapter(): SwapPort {
   return new SwapBffAdapter();
@@ -25,4 +29,12 @@ export function resolveFaucetAdapter(): FaucetPort {
 
 export function resolveBridgeAdapter(): BridgePort {
   return new BridgeBffAdapter();
+}
+
+export function resolveExploreAdapter(): ExplorePort {
+  return new ExploreBffAdapter();
+}
+
+export function resolveTokenAdapter(): TokenPort {
+  return new TokenBffAdapter();
 }

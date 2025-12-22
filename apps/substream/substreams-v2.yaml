@@ -1,0 +1,297 @@
+specVersion: v0.1.0
+package:
+  name: dripswap_uniswap_v2
+  version: v0.1.0
+  url: https://github.com/your-org/DripSwap_Monorepo
+  description: DripSwap Uniswap V2 Substreams - Sepolia & Scroll Sepolia 测试网数据索引
+
+imports:
+  entity: https://github.com/streamingfast/substreams-entity-change/releases/download/v1.1.0/substreams-entity-change-v1.1.0.spkg
+
+protobuf:
+  files:
+    - uniswap/v2/uniswap.proto
+  importPaths:
+    - ./proto
+  excludePaths:
+    - sf/substreams
+    - google
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: target/wasm32-unknown-unknown/release/substreams_uniswap_v2.wasm
+
+network: sepolia
+
+modules:
+  # ========== Map 模块 ==========
+  - name: map_pairs_created
+    kind: map
+    initialBlock: 9573280  # Sepolia Factory 部署区块
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:uniswap.types.v2.Pairs
+    doc: |
+      监听 Factory.PairCreated 事件，提取创建的交易对信息
+
+  - name: map_tokens_whitelist_pairs
+    kind: map
+    initialBlock: 9573280
+    inputs:
+      - map: map_pairs_created
+    output:
+      type: proto:uniswap.types.v2.ERC20Tokens
+    doc: |
+      检查白名单代币，记录其参与的 Pair 地址
+
+  - name: map_extract_data_types
+    kind: map
+    initialBlock: 9573280
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+      - store: store_pairs_created
+    output:
+      type: proto:uniswap.types.v2.Events
+    doc: |
+      提取所有 V2 事件：
+      - Sync 事件（更新 reserve0/reserve1）
+      - Swap 事件
+      - Mint 事件
+      - Burn 事件
+      - Transfer 事件（追踪 LP Token）
+
+  # ========== Store 模块 ==========
+  - name: store_pairs_created
+    kind: store
+    updatePolicy: set
+    valueType: proto:uniswap.types.v2.Pair
+    inputs:
+      - map: map_pairs_created
+    doc: |
+      存储所有创建的 Pair 元数据
+
+  - name: store_tokens
+    kind: store
+    updatePolicy: add
+    valueType: int64
+    inputs:
+      - map: map_pairs_created
+    doc: |
+      Token 使用计数器
+
+  - name: store_pair_count
+    kind: store
+    updatePolicy: add
+    valueType: bigint
+    inputs:
+      - map: map_pairs_created
+    doc: |
+      Factory 的 pairCount 累加器
+
+  - name: store_tokens_whitelist_pairs
+    kind: store
+    updatePolicy: append
+    valueType: string
+    inputs:
+      - map: map_tokens_whitelist_pairs
+    doc: |
+      白名单代币的 Pair 列表
+
+  - name: store_pair_reserves
+    kind: store
+    updatePolicy: set
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+    doc: |
+      存储 Pair 的 reserve0/reserve1（从 Sync 事件读取）
+
+  - name: store_prices
+    kind: store
+    updatePolicy: set
+    initialBlock: 9573280
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+      - store: store_pairs_created
+      - store: store_pair_reserves
+    doc: |
+      存储 token0Price 和 token1Price
+      计算公式：token0Price = reserve0 / reserve1
+
+  - name: store_total_tx_counts
+    kind: store
+    updatePolicy: add
+    valueType: bigint
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+    doc: |
+      全局交易计数累加器
+
+  - name: store_swaps_volume
+    kind: store
+    updatePolicy: add
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+      - store: store_pairs_created
+      - store: store_total_tx_counts
+      - store: store_eth_prices
+    doc: |
+      交易量和手续费累加器（V2 固定 0.3% 手续费）
+
+  - name: store_native_amounts
+    kind: store
+    updatePolicy: set
+    valueType: bigdecimal
+    inputs:
+      - map: map_extract_data_types
+    doc: |
+      Mint/Burn/Swap 的原生代币数量
+
+  - name: store_eth_prices
+    kind: store
+    updatePolicy: set
+    initialBlock: 9573280
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+      - store: store_pairs_created
+      - store: store_prices
+      - store: store_tokens_whitelist_pairs
+      - store: store_native_amounts
+      - store: store_pair_reserves
+    doc: |
+      存储 ETH/USD 价格（通过 Oracle 查询）
+      存储 Token 的 derivedETH 价格（通过白名单 Pair 计算）
+
+  - name: store_token_tvl
+    kind: store
+    initialBlock: 9573280
+    updatePolicy: add
+    valueType: bigdecimal
+    inputs:
+      - map: map_extract_data_types
+    doc: |
+      Token 在所有 Pair 中的总锁定量
+
+  - name: store_derived_tvl
+    kind: store
+    initialBlock: 9573280
+    updatePolicy: set
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+      - store: store_token_tvl
+      - store: store_pairs_created
+      - store: store_eth_prices
+    doc: |
+      Pair 和 Token 的 USD/ETH 计价 TVL
+
+  - name: store_derived_factory_tvl
+    kind: store
+    initialBlock: 9573280
+    updatePolicy: add
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - store: store_derived_tvl
+        mode: deltas
+    doc: |
+      Factory 的全局 TVL（USD/ETH）
+
+  - name: store_pending_mints
+    kind: store
+    updatePolicy: set
+    valueType: proto:uniswap.types.v2.PendingMint
+    inputs:
+      - map: map_extract_data_types
+    doc: |
+      V2 特有：存储待完成的 Mint 事件（Transfer → Mint 双阶段）
+
+  - name: store_pending_burns
+    kind: store
+    updatePolicy: set
+    valueType: proto:uniswap.types.v2.PendingBurn
+    inputs:
+      - map: map_extract_data_types
+    doc: |
+      V2 特有：存储待完成的 Burn 事件（Transfer → Burn 双阶段）
+
+  - name: store_min_windows
+    kind: store
+    updatePolicy: min
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - store: store_prices
+        mode: deltas
+      - store: store_eth_prices
+        mode: deltas
+    doc: |
+      OHLC 的 open/low 价格（日/小时维度）
+
+  - name: store_max_windows
+    kind: store
+    updatePolicy: max
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - store: store_prices
+        mode: deltas
+      - store: store_eth_prices
+        mode: deltas
+    doc: |
+      OHLC 的 high 价格（日/小时维度）
+
+  # ========== 输出模块 ==========
+  - name: graph_out
+    kind: map
+    initialBlock: 9573280
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - store: store_pair_count
+        mode: deltas
+      - store: store_total_tx_counts
+        mode: deltas
+      - store: store_swaps_volume
+        mode: deltas
+      - store: store_derived_factory_tvl
+        mode: deltas
+      - store: store_eth_prices
+        mode: deltas
+      - map: map_extract_data_types
+      - map: map_pairs_created
+      - store: store_pair_reserves
+        mode: deltas
+      - store: store_pair_reserves
+      - store: store_token_tvl
+        mode: deltas
+      - store: store_prices
+        mode: deltas
+      - store: store_prices
+      - store: store_tokens
+      - store: store_tokens_whitelist_pairs
+        mode: deltas
+      - store: store_derived_tvl
+        mode: deltas
+      - store: store_total_tx_counts
+      - store: store_eth_prices
+      - store: store_pending_mints
+      - store: store_pending_burns
+      - store: store_min_windows
+        mode: deltas
+      - store: store_max_windows
+        mode: deltas
+    output:
+      type: proto:sf.substreams.entity.v1.EntityChanges
+    doc: |
+      输出所有实体变更（EntityChanges），用于写入 PostgreSQL

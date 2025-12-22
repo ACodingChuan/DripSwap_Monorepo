@@ -1,0 +1,149 @@
+syntax = "proto3";
+
+package uniswap.types.v2;
+
+message ERC20Tokens {
+  repeated ERC20Token tokens = 1;
+}
+
+message ERC20Token {
+  string address = 1;
+  string name = 2;
+  string symbol = 3;
+  uint64 decimals = 4;
+  string total_supply = 5;
+  repeated string whitelist_pairs = 6;  // V2: 改为 pairs
+}
+
+message Pairs {
+  repeated Pair pairs = 1;
+}
+
+message Pair {
+  string address = 1;
+  uint64 created_at_timestamp = 3;
+  uint64 created_at_block_number = 4;
+  ERC20Token token0 = 5;
+  ERC20Token token1 = 6;
+  
+  // V2 特有字段
+  string reserve0 = 7;  // Decimal
+  string reserve1 = 8;  // Decimal
+  string total_supply = 9;  // Decimal - LP Token 总供应量
+
+  // internals
+  uint64 log_ordinal = 31;
+  string transaction_id = 32;
+  bool ignore_pair = 33;
+}
+
+message Events {
+  repeated PairReserves pair_reserves = 1;  // V2: Sync 事件
+  repeated PairEvent pair_events = 2;
+  repeated Transaction transactions = 3;
+  repeated Transfer transfers = 4;  // V2: Transfer 事件用于追踪 LP Token
+
+  // V2: Sync 事件 - 更新储备
+  message PairReserves {
+    string pair_address = 1;
+    // Decimal
+    string reserve0 = 2;
+    string reserve1 = 3;
+    uint64 ordinal = 4;
+    string token0 = 5;
+    string token1 = 6;
+    uint64 log_ordinal = 7;
+  }
+
+  message PairEvent {
+    oneof type {
+      Swap swap = 1;
+      Burn burn = 2;
+      Mint mint = 3;
+    }
+    uint64 log_ordinal = 100;
+    uint64 log_index = 101;
+    string pair_address = 102;
+    string token0 = 103;
+    string token1 = 104;
+    string transaction_id = 106;
+    uint64 timestamp = 107;
+    uint64 created_at_block_number = 108;
+
+    message Swap {
+      string sender = 1;
+      string to = 2;  // V2: recipient 改为 to
+      // Decimal
+      string amount_0_in = 3;
+      string amount_1_in = 4;
+      string amount_0_out = 5;
+      string amount_1_out = 6;
+    }
+
+    message Burn {
+      string sender = 1;
+      // Decimal
+      string amount_0 = 2;
+      string amount_1 = 3;
+      string to = 4;
+      // Decimal
+      string liquidity = 5;  // LP Token 数量
+    }
+
+    message Mint {
+      string sender = 1;
+      // Decimal
+      string amount_0 = 2;
+      string amount_1 = 3;
+      // Decimal
+      string liquidity = 4;  // LP Token 数量
+    }
+  }
+
+  // V2: Transfer 事件 - 追踪 LP Token
+  message Transfer {
+    string pair_address = 1;
+    string from = 2;
+    string to = 3;
+    // Decimal
+    string value = 4;  // LP Token 数量
+    uint64 log_ordinal = 5;
+    uint64 timestamp = 6;
+    string transaction_id = 7;
+  }
+
+  message Transaction {
+    string id = 1;
+    uint64 block_number = 2;
+    uint64 timestamp = 3;
+    uint64 gas_used = 4;
+    // Integer
+    string gas_price = 5;
+    uint64 log_ordinal = 6;
+  }
+}
+
+// V2: Pending Mint/Burn 状态（用于双阶段提交）
+message PendingMint {
+  string id = 1;
+  string pair = 2;
+  string to = 3;
+  string liquidity = 4;  // Decimal
+  string transaction = 5;
+  uint64 timestamp = 6;
+  uint64 log_ordinal = 7;
+}
+
+message PendingBurn {
+  string id = 1;
+  string pair = 2;
+  string liquidity = 3;  // Decimal
+  string transaction = 4;
+  uint64 timestamp = 5;
+  uint64 log_ordinal = 6;
+  bool needs_complete = 7;
+  
+  // 协议费用字段
+  optional string fee_to = 8;
+  optional string fee_liquidity = 9;
+}

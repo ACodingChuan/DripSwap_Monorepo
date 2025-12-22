@@ -34,6 +34,13 @@ apps/bff/.project
 apps/bff/.classpath
 apps/bff/.settings/
 
+# Substreams / Rust
+apps/substream/target/
+apps/substream/Cargo.lock
+apps/substream/*.spkg
+apps/substream/*.log
+apps/substream/*.tmp
+
 # Misc
 .DS_Store
 .env
@@ -43,3 +50,7 @@ apps/bff/.settings/
 
 v2-subgraph
 interface
+
+# Embedded repos
+/substreams/
+/substreams-uniswap-v3/

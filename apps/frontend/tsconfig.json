@@ -3,7 +3,7 @@
   "extends": "./tsconfig.node.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "types": ["vite/client", "vitest", "msw"],
+    "types": ["vite/client", "vitest"],
     "baseUrl": ".",
     "paths": {
       "@/app/*": ["src/app/*"],

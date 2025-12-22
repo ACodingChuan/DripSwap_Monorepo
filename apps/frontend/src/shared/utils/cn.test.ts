@@ -4,7 +4,8 @@ import { cn } from './cn';
 
 describe('cn', () => {
   it('merges conditional class names', () => {
-    const result = cn('px-4', undefined, false && 'hidden', 'text-base');
+    const shouldHide = Math.random() > 1;
+    const result = cn('px-4', undefined, shouldHide && 'hidden', 'text-base');
     expect(result).toBe('px-4 text-base');
   });
 

@@ -248,7 +248,7 @@ const BridgePage = () => {
 
     if (walletChainId !== fromNetworkId) {
       return (
-        <Button onClick={handleSwitchNetwork} className="w-full" variant="default">
+        <Button onClick={handleSwitchNetwork} className="w-full" variant="primary">
           Switch to {fromNetworkId === CCIP_CHAINS.SEPOLIA ? 'Sepolia' : 'Scroll'}
         </Button>
       );
@@ -396,7 +396,7 @@ const BridgePage = () => {
               <Label>Pay Fees In</Label>
               <RadioGroup
                 value={feeToken}
-                onValueChange={(v) => setFeeToken(v as 'NATIVE' | 'LINK')}
+                onValueChange={(value: string) => setFeeToken(value as 'NATIVE' | 'LINK')}
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">

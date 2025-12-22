@@ -37,11 +37,11 @@ spring:
     schema:
       locations: classpath:graphql/**/
     path: /graphql
-  mvc:
+  web:
     cors:
       mappings:
         - path-pattern: "/**"
-          allowed-origins: "${BFF_CORS_ALLOWED_ORIGINS:http://localhost:5173}"
+          allowed-origins: "${BFF_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}"
           allowed-methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
           allowed-headers: "*"
           allow-credentials: true
@@ -52,18 +52,25 @@ server:
 subgraph:
   batch-size: ${SUBGRAPH_BATCH_SIZE:500}
   retry-count: ${SUBGRAPH_RETRY_COUNT:3}
+  delta:
+    enabled: ${SUBGRAPH_DELTA_ENABLED:true}
+    tick-ms: ${SUBGRAPH_DELTA_TICK_MS:5000}
+    interval-schedule-seconds: [120, 120, 120, 240, 360, 600]
+    reset-on-change: true
+    reset-on-ws-signal: true
+    batch-size: ${SUBGRAPH_DELTA_BATCH_SIZE:500}
+    max-pages-per-tick: ${SUBGRAPH_DELTA_MAX_PAGES_PER_TICK:2}
+    max-total-records-per-tick: ${SUBGRAPH_DELTA_MAX_TOTAL_RECORDS_PER_TICK:5000}
   chains:
     - id: sepolia
       chain-id: 11155111
       enabled: true
       endpoint: "https://api.studio.thegraph.com/query/1718761/dripswap-v-2-sepolia/version/latest"
-      endpoint-v2-tokens: "https://api.studio.thegraph.com/query/1718761/dripswap-v-2-tokens-sepolia/version/latest"
       start-block: 9573280
     - id: scroll-sepolia
       chain-id: 534351
       enabled: true
       endpoint: "https://api.studio.thegraph.com/query/1716244/dripswap_v2_scroll_sepolia/version/latest"
-      endpoint-v2-tokens: "https://api.studio.thegraph.com/query/1716244/drip-swap-v-2-tokens-scroll-sepolia/version/latest"
       start-block: 0
 
 # DripSwap multi-chain configuration
@@ -84,12 +91,14 @@ dripswap:
         http: "${BFF_SCROLL_SEPOLIA_RPC_HTTP:https://scroll-sepolia.example-rpc.io}"
         ws: "${BFF_SCROLL_SEPOLIA_RPC_WS:wss://scroll-sepolia.g.alchemy.com/v2/DhJ0V7QwXBRjUtK5_kL8nbauZLdn5WRI}"
 
-# OpenTelemetry configuration
-otel:
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
-  resource:
-    attributes:
-      service.name: dripswap-bff
-      service.version: 1.0.0
+management:
+  tracing:
+    enabled: true
+    propagation:
+      type: w3c
+    sampling:
+      probability: ${BFF_TRACING_SAMPLING_PROBABILITY:1.0}
+  otlp:
+    tracing:
+      # Spring Boot 3.2 uses OTLP/HTTP span exporter; endpoint should include `/v1/traces`
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}

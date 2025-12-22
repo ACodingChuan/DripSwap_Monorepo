@@ -1,0 +1,310 @@
+specVersion: v0.1.0
+package:
+  name: dripswap_v2
+  version: v0.1.0
+  url: https://github.com/yourusername/dripswap-substreams-v2
+  image: ./sf_substreams_uniswap.jpeg
+  description: DripSwap Uniswap V2 Substreams implementation for Sepolia and Scroll Sepolia testnet
+
+imports:
+  entity: https://github.com/streamingfast/substreams-entity-change/releases/download/v1.1.0/substreams-entity-change-v1.1.0.spkg
+
+protobuf:
+  files:
+    - uniswap/v1/uniswap.proto
+  importPaths:
+    - ./proto
+  excludePaths:
+    - sf/substreams
+    - google
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: target/wasm32-unknown-unknown/release/substreams_uniswap_v2.wasm
+#    build: cargo build --release --target wasm32-unknown-unknown
+
+# V2: Scroll Sepolia 测试网配置
+network: scroll-sepolia
+
+modules:
+  - name: map_pools_created
+    kind: map
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:uniswap.types.v1.Pools
+    doc: |
+      V2: 监听 PairCreated 事件，创建 Pair 结构体。
+      Try with
+      ```
+      substreams gui substreams.yaml map_pools_created -t +1000
+      ```
+
+  - name: store_pools_created
+    kind: store
+    updatePolicy: set
+    valueType: proto:uniswap.types.v1.Pool
+    inputs:
+      - map: map_pools_created
+    doc: |
+      V2: 存储 Pair 元数据（地址、token0、token1、reserves）。
+
+  - name: store_tokens
+    kind: store
+    updatePolicy: add
+    valueType: int64
+    inputs:
+      - map: map_pools_created
+    doc: |
+      `Int64` store accumulator for each time a token is used for any combination for a pool.
+
+  - name: store_pool_count
+    kind: store
+    updatePolicy: add
+    valueType: bigint
+    inputs:
+      - map: map_pools_created
+    doc: |
+      `BigInt` store accumulator for each time a pool is created.
+
+  - name: map_tokens_whitelist_pools
+    kind: map
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    inputs:
+      - map: map_pools_created
+    output:
+      type: proto:uniswap.types.v1.ERC20Tokens
+    doc: |
+      V2: 标记白名单代币（WETH、USDC 等），用于 ETH 价格计算。
+
+  - name: store_tokens_whitelist_pools
+    kind: store
+    updatePolicy: append
+    valueType: string
+    inputs:
+      - map: map_tokens_whitelist_pools
+    doc: |
+      `String` appender store which stores the `whitelist_pools` field of a token.
+
+  - name: map_extract_data_types
+    kind: map
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    inputs:
+      - source: sf.ethereum.type.v2.Block
+      - store: store_pools_created
+    output:
+      type: proto:uniswap.types.v1.Events
+    doc: |
+      V2: 提取 Swap/Mint/Burn/Sync 事件（删除 V3 的 Tick/Position 事件）。
+
+  - name: store_pool_sqrt_price
+    kind: store
+    updatePolicy: set
+    valueType: proto:uniswap.types.v1.Events.PoolSqrtPrice
+    inputs:
+      - map: map_extract_data_types
+    doc: |
+      V2: 存储 Pair 的 reserve0/reserve1（从 Sync 事件读取）。
+
+  - name: store_prices
+    kind: store
+    updatePolicy: set
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+      - store: store_pools_created
+    doc: |
+      V2: 计算 token0Price = reserve0/reserve1（简化的价格计算）。
+
+  - name: store_pool_liquidities
+    kind: store
+    updatePolicy: set
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    valueType: bigint
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+    doc: |
+      V2: 存储 Pair 的 reserve0/reserve1（从 Sync 事件读取，非 StorageChange）。
+
+  - name: store_total_tx_counts
+    kind: store
+    updatePolicy: add
+    valueType: bigint
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+    doc: |
+      `BigInt` accumulator store for the total transaction counts for pools, tokens, factory, 
+      daily factory, daily and hourly for token and pool data.
+
+  - name: store_swaps_volume
+    kind: store
+    updatePolicy: add
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+      - store: store_pools_created
+      - store: store_total_tx_counts
+      - store: store_eth_prices
+    doc: |
+      `BigDecimal` accumulator store for the swap volume of various entries such as `amount0_abs`, `amount1_abs`,
+      `volume_usd`, `volume_usd_untracked`, `volume_eth`, `fee_usd` and `fee_eth`. The `_0` and `_1` entries
+      are the value of one token for another token.
+
+  - name: store_native_amounts
+    kind: store
+    updatePolicy: set
+    valueType: bigdecimal
+    inputs:
+      - map: map_extract_data_types
+    doc: |
+      `BigDecimal` setter store for the native amounts out of any `Event` type: `Mint`, `Swap` and `Burn` amounts
+      (amount0 and amount1).
+
+  - name: store_eth_prices
+    kind: store
+    updatePolicy: set
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+      - store: store_pools_created
+      - store: store_prices
+      - store: store_tokens_whitelist_pools
+      - store: store_native_amounts
+      - store: store_pool_liquidities
+    doc: |
+      V2: 计算 ETH/USD 价格（通过 Oracle 或 WETH/USDC pair）和 token.derivedETH。
+
+  - name: store_token_tvl
+    kind: store
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    updatePolicy: add
+    valueType: bigdecimal
+    inputs:
+      - map: map_extract_data_types
+    doc: |
+      V2: 累加 Token 的 TVL（Mint +, Burn -, Swap 净变化）。
+
+  - name: store_derived_tvl
+    kind: store
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    updatePolicy: set
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - map: map_extract_data_types
+      - store: store_token_tvl
+      - store: store_pools_created
+      - store: store_eth_prices
+    doc: |
+      V2: 计算 USD/ETH 计价的 TVL（tokenAmount * derivedETH * ethPrice）。
+
+  - name: store_derived_factory_tvl
+    kind: store
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    updatePolicy: add
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - store: store_derived_tvl
+        mode: deltas
+    doc: |
+      V2: 聚合 Factory 的全局 TVL。
+
+  # V2: 删除 store_ticks_liquidities 模块（V3 特有）
+  # - name: store_ticks_liquidities
+  #   kind: store
+  #   updatePolicy: add
+  #   valueType: bigint
+  #   ...
+
+  # V2: 删除 store_positions 模块（V3 使用 Position NFT，V2 使用 LP Token）
+  # - name: store_positions
+  #   kind: store
+  #   updatePolicy: set
+  #   valueType: proto:uniswap.types.v1.Events.PositionEvent
+  #   ...
+
+  - name: store_min_windows
+    kind: store
+    updatePolicy: min
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - store: store_prices
+        mode: deltas
+      - store: store_eth_prices
+        mode: deltas
+    doc: |
+      `BigDecimal` minimum store for the price of `eth` and token prices for `open` and `low` for daily and hourly.
+
+  - name: store_max_windows
+    kind: store
+    updatePolicy: max
+    valueType: bigdecimal
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - store: store_prices
+        mode: deltas
+      - store: store_eth_prices
+        mode: deltas
+    doc: |
+      `BigDecimal` maximum store for the price of `eth` and token prices for `open` and `low` for daily and hourly.
+
+  - name: graph_out
+    kind: map
+    initialBlock: 14731854  # V2: Scroll Sepolia Factory 部署区块
+    inputs:
+      - source: sf.substreams.v1.Clock
+      - store: store_pool_count
+        mode: deltas
+      - store: store_total_tx_counts
+        mode: deltas
+      - store: store_swaps_volume
+        mode: deltas
+      - store: store_derived_factory_tvl
+        mode: deltas
+      - store: store_eth_prices
+        mode: deltas
+      - map: map_extract_data_types
+      - map: map_pools_created
+      - store: store_pool_sqrt_price
+        mode: deltas
+      - store: store_pool_sqrt_price
+      - store: store_pool_liquidities
+        mode: deltas
+      - store: store_token_tvl
+        mode: deltas
+      - store: store_prices
+        mode: deltas
+      - store: store_prices
+      - store: store_tokens
+      - store: store_tokens_whitelist_pools
+        mode: deltas
+      - store: store_derived_tvl
+        mode: deltas
+      # V2: 删除 store_ticks_liquidities 输入
+      # - store: store_ticks_liquidities
+      #   mode: deltas
+      - store: store_total_tx_counts
+      - store: store_eth_prices
+      # V2: 删除 store_positions 输入
+      # - store: store_positions
+      - store: store_min_windows
+        mode: deltas
+      - store: store_max_windows
+        mode: deltas
+    output:
+      type: proto:sf.substreams.entity.v1.EntityChanges
+    doc: |
+      V2: 输出 EntityChanges，包含 Pair/Token/Transaction/Swap/Mint/Burn 等实体。
+
+

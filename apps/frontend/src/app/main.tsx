@@ -7,6 +7,11 @@ import '@/styles/globals.css';
 import '@/styles/tailwind.css';
 
 async function bootstrap() {
+  if (import.meta.env.VITE_OTEL_ENABLED === 'true') {
+    const { initOtel } = await import('@/shared/otel/initOtel');
+    initOtel();
+  }
+
   const rootElement = document.getElementById('root');
 
   if (!rootElement) {

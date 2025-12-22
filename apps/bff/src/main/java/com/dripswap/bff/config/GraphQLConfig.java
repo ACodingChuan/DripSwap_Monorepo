@@ -3,6 +3,7 @@ package com.dripswap.bff.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import graphql.scalars.ExtendedScalars;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.graphql.execution.RuntimeWiringConfigurer;
@@ -27,8 +28,8 @@ public class GraphQLConfig {
      * RestTemplate bean for HTTP requests.
      */
     @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
+    public RestTemplate restTemplate(RestTemplateBuilder builder) {
+        return builder.build();
     }
 
     /**
@@ -36,6 +37,8 @@ public class GraphQLConfig {
      */
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.findAndRegisterModules();
+        return mapper;
     }
 }

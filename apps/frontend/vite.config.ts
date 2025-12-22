@@ -9,6 +9,15 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  server: {
+    proxy: {
+      '/otlp': {
+        target: 'http://localhost:4318',
+        changeOrigin: true,
+        rewrite: (proxyPath) => proxyPath.replace(/^\/otlp/, ''),
+      },
+    },
+  },
   test: {
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     environment: 'jsdom',

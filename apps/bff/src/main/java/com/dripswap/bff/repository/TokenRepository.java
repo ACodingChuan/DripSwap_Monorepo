@@ -14,6 +14,8 @@ public interface TokenRepository extends JpaRepository<Token, ChainEntityId> {
     List<Token> findByChainId(String chainId);
     
     Optional<Token> findByIdAndChainId(String id, String chainId);
+
+    List<Token> findByChainIdAndIdIn(String chainId, List<String> ids);
     
     List<Token> findByChainIdOrderByTradeVolumeUsdDesc(String chainId);
 }

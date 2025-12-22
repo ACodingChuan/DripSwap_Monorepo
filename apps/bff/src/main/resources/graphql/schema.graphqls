@@ -38,6 +38,30 @@ type Query {
   
   """Get TVL analytics"""
   analyticsTvl: TvlStats!
+
+  """Get Explore protocol stats for a chain (MVP)."""
+  exploreStats(chainId: String!, days: Int): ExploreStatsPayload!
+
+  """Explore tokens list for a chain (MVP)."""
+  exploreTokens(chainId: String!, limit: Int, search: String): [ExploreTokenRow!]!
+
+  """Token details header data (MVP)."""
+  tokenDetails(chainId: String!, tokenAddress: String!): TokenDetails
+
+  """Token price candles (OHLC) for charting (MVP)."""
+  tokenPriceCandles(
+    chainId: String!
+    tokenAddress: String!
+    interval: TokenChartInterval!
+    from: Int!
+    to: Int!
+  ): [TokenOhlc!]!
+
+  """Token pools list (MVP)."""
+  tokenPools(chainId: String!, tokenAddress: String!, limit: Int): [TokenPoolRow!]!
+
+  """Token recent swaps (MVP)."""
+  tokenTransactions(chainId: String!, tokenAddress: String!, limit: Int): [TokenTransactionRow!]!
 }
 
 """Raw blockchain event from eth_log"""
@@ -178,5 +202,148 @@ type TvlStats {
   changeRate: BigDecimal!
 }
 
+"""Explore page (tokens tab) protocol stats"""
+type ExploreStatsPayload {
+  chainId: String!
+  tvlUsd: BigDecimal!
+  volume24hUsd: BigDecimal!
+  fees24hUsd: BigDecimal!
+  tvlSeries: [ExploreSeriesPoint!]!
+  volumeSeries: [ExploreSeriesPoint!]!
+}
+
+"""Time series point for Explore charts"""
+type ExploreSeriesPoint {
+  date: Int!
+  valueUsd: BigDecimal!
+}
+
+"""Explore tokens table row"""
+type ExploreTokenRow {
+  id: String!
+  chainId: String!
+  symbol: String!
+  name: String!
+  decimals: Int!
+  totalSupply: BigDecimal!
+  derivedETH: BigDecimal!
+  
+  """Calculated USD price (derivedETH * bundle.ethPrice) - computed in resolver"""
+  priceUsd: BigDecimal
+  
+  """1h price change percentage - computed in resolver"""
+  change1h: BigDecimal
+  
+  """1d price change percentage - computed in resolver"""
+  change1d: BigDecimal
+  
+  """Fully Diluted Valuation in USD - computed in resolver"""
+  fdvUsd: BigDecimal
+  
+  """24h volume in USD - computed in resolver"""
+  volume24hUsd: BigDecimal
+  
+  """Associated bundle for ETH price (field resolver)"""
+  bundle: Bundle
+  
+  """Current hour data for 1h change calculation (field resolver)"""
+  currentHourData: TokenHourData
+  
+  """Latest day data for 1d change calculation (field resolver)"""
+  latestDayData: TokenDayData
+  
+  """Previous day data for 1d change calculation (field resolver)"""
+  previousDayData: TokenDayData
+}
+
+"""Bundle entity for ETH price tracking"""
+type Bundle {
+  id: String!
+  chainId: String!
+  ethPrice: BigDecimal!
+}
+
+"""Token hour aggregated data"""
+type TokenHourData {
+  id: String!
+  chainId: String!
+  periodStartUnix: Int!
+  tokenId: String!
+  priceUsd: BigDecimal!
+  open: BigDecimal!
+  high: BigDecimal!
+  low: BigDecimal!
+  close: BigDecimal!
+}
+
+"""Token day aggregated data"""
+type TokenDayData {
+  id: String!
+  chainId: String!
+  date: Int!
+  tokenId: String!
+  priceUsd: BigDecimal!
+  dailyVolumeUsd: BigDecimal!
+}
+
 """Custom scalar for BigDecimal values"""
 scalar BigDecimal
+
+enum TokenChartInterval {
+  MINUTE
+  HOUR
+  DAY
+}
+
+"""Token details page header payload."""
+type TokenDetails {
+  chainId: String!
+  address: String!
+  symbol: String!
+  name: String!
+  decimals: Int!
+  priceUsd: BigDecimal!
+  change24hPct: BigDecimal
+  tvlUsd: BigDecimal!
+  volume24hUsd: BigDecimal!
+  fdvUsd: BigDecimal
+}
+
+"""OHLC candle for token price chart."""
+type TokenOhlc {
+  timestamp: Int!
+  open: BigDecimal!
+  high: BigDecimal!
+  low: BigDecimal!
+  close: BigDecimal!
+  volumeUsd: BigDecimal!
+  tvlUsd: BigDecimal!
+}
+
+type TokenLite {
+  address: String!
+  symbol: String!
+  name: String!
+}
+
+type TokenPoolRow {
+  pairAddress: String!
+  token0: TokenLite!
+  token1: TokenLite!
+  tvlUsd: BigDecimal!
+  volumeUsd: BigDecimal!
+}
+
+type TokenTransactionRow {
+  id: String!
+  timestamp: Long!
+  txHash: String!
+  pairAddress: String!
+  amountUsd: BigDecimal!
+  token0: TokenLite!
+  token1: TokenLite!
+  amount0In: BigDecimal!
+  amount1In: BigDecimal!
+  amount0Out: BigDecimal!
+  amount1Out: BigDecimal!
+}
