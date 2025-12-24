@@ -1,10 +1,128 @@
 // V2: 简化版 filtering.rs，删除所有 Tick 和 Position 相关逻辑
 use crate::pb::uniswap::events;
-use crate::{abi, Pool, BurnEvent, MintEvent, SwapEvent};
+use crate::{abi, constants, Pool, BurnEvent, MintEvent, SwapEvent};
 // V2: 删除未使用的 BigDecimal 和 BigInt 导入
 use substreams::{log, Hex};
+use substreams::scalar::BigInt;
+use std::collections::HashMap;
 use substreams_ethereum::block_view::CallView;
 use substreams_ethereum::pb::eth::v2::{Log, TransactionTrace};
+
+#[derive(Debug, Clone)]
+pub struct TransferEvent {
+    pub log_index: u64,
+    pub from: String,
+    pub to: String,
+    pub value: BigInt,
+    pub used: bool,
+}
+
+#[derive(Debug, Default)]
+pub struct TransferContext {
+    per_pool: HashMap<String, Vec<TransferEvent>>,
+}
+
+impl TransferContext {
+    pub fn record_transfer(&mut self, pool_address: &str, log: &Log) {
+        if !abi::pair::events::Transfer::match_log(log) {
+            return;
+        }
+        let transfer = abi::pair::events::Transfer::decode(log).unwrap();
+        let from = normalize_address(&Hex(&transfer.from).to_string());
+        let to = normalize_address(&Hex(&transfer.to).to_string());
+
+        // ignore initial transfers for first adds
+        if to == normalize_address(constants::ZERO_ADDRESS) && transfer.value == BigInt::from(1000) {
+            return;
+        }
+
+        self.per_pool
+            .entry(pool_address.to_string())
+            .or_default()
+            .push(TransferEvent {
+                log_index: log.block_index as u64,
+                from,
+                to,
+                value: transfer.value,
+                used: false,
+            });
+    }
+
+    pub fn consume_mint(&mut self, pool_address: &str, mint_log_index: u64) -> Option<(String, BigInt)> {
+        let events = self.per_pool.get_mut(pool_address)?;
+        let zero_addr = normalize_address(constants::ZERO_ADDRESS);
+        let mut selected: Option<usize> = None;
+
+        for (idx, event) in events.iter().enumerate() {
+            if event.used || event.from != zero_addr || event.to == zero_addr {
+                continue;
+            }
+            if event.log_index > mint_log_index {
+                continue;
+            }
+            if selected.is_none() || event.log_index > events[selected.unwrap()].log_index {
+                selected = Some(idx);
+            }
+        }
+
+        if let Some(idx) = selected {
+            let event = &mut events[idx];
+            event.used = true;
+            return Some((event.to.clone(), event.value.clone()));
+        }
+        None
+    }
+
+    pub fn consume_burn(&mut self, pool_address: &str, burn_log_index: u64) -> Option<BigInt> {
+        let events = self.per_pool.get_mut(pool_address)?;
+        let pool_addr = normalize_address(pool_address);
+        let zero_addr = normalize_address(constants::ZERO_ADDRESS);
+
+        // prefer burn completion (pool -> zero) after burn event
+        let mut selected: Option<usize> = None;
+        for (idx, event) in events.iter().enumerate() {
+            if event.used || event.from != pool_addr || event.to != zero_addr {
+                continue;
+            }
+            if event.log_index < burn_log_index {
+                continue;
+            }
+            if selected.is_none() || event.log_index < events[selected.unwrap()].log_index {
+                selected = Some(idx);
+            }
+        }
+        if let Some(idx) = selected {
+            let event = &mut events[idx];
+            event.used = true;
+            return Some(event.value.clone());
+        }
+
+        // fallback: transfer to pool before burn event
+        let mut selected: Option<usize> = None;
+        for (idx, event) in events.iter().enumerate() {
+            if event.used || event.to != pool_addr {
+                continue;
+            }
+            if event.log_index > burn_log_index {
+                continue;
+            }
+            if selected.is_none() || event.log_index > events[selected.unwrap()].log_index {
+                selected = Some(idx);
+            }
+        }
+        if let Some(idx) = selected {
+            let event = &mut events[idx];
+            event.used = true;
+            return Some(event.value.clone());
+        }
+
+        None
+    }
+}
+
+fn normalize_address(address: &str) -> String {
+    address.trim_start_matches("0x").to_lowercase()
+}
 
 /// V2: 简化的事件提取函数，只处理 Swap/Mint/Burn
 /// 删除了 Tick、Position、FeeGrowth 相关逻辑
@@ -17,6 +135,7 @@ pub fn extract_pool_events(
     pool: &Pool,
     timestamp: u64,
     block_number: u64,
+    transfer_ctx: &mut TransferContext,
 ) {
     // V2: 使用 abi::pair 而非 abi::pool（但 proto 中仍使用 pool_event 类型以保持兼容）
     if abi::pair::events::Swap::match_log(log) {
@@ -61,6 +180,13 @@ pub fn extract_pool_events(
         let amount0 = mint.amount0.to_decimal(token0.decimals);
         let amount1 = mint.amount1.to_decimal(token1.decimals);
 
+        let (mint_to, mint_amount) = match transfer_ctx.consume_mint(&pool.address, log.block_index as u64) {
+            Some((to, value)) => (to, value),
+            None => (String::new(), BigInt::zero()),
+        };
+        let owner = if mint_to.is_empty() { Hex(&mint.sender).to_string() } else { mint_to };
+        let amount = if mint_amount == BigInt::zero() { "0".to_string() } else { mint_amount.to_string() };
+
         pool_events.push(events::PoolEvent {
             log_ordinal: log.ordinal,
             log_index: log.block_index as u64,
@@ -72,10 +198,10 @@ pub fn extract_pool_events(
             timestamp,
             created_at_block_number: block_number,
             r#type: Some(MintEvent(events::pool_event::Mint {
-                owner: Hex(&mint.sender).to_string(),  // V2: Mint 事件中的 sender 是 LP 提供者
+                owner,  // V2: Transfer(to) 作为 LP 接收地址
                 sender: Hex(&mint.sender).to_string(),
                 origin: from.to_string(),
-                amount: "0".to_string(),  // V2: LP Token 增量，需从 Transfer 事件计算
+                amount,  // V2: LP Token 增量，来自 Transfer
                 amount_0: amount0.into(),
                 amount_1: amount1.into(),
                 tick_lower: "0".to_string(),  // V2: 无 tick
@@ -92,6 +218,15 @@ pub fn extract_pool_events(
         let amount0 = burn.amount0.to_decimal(token0.decimals);
         let amount1 = burn.amount1.to_decimal(token1.decimals);
 
+        let burn_amount = transfer_ctx
+            .consume_burn(&pool.address, log.block_index as u64)
+            .unwrap_or_default();
+        let amount = if burn_amount == BigInt::zero() {
+            "0".to_string()
+        } else {
+            burn_amount.to_string()
+        };
+
         pool_events.push(events::PoolEvent {
             log_ordinal: log.ordinal,
             log_index: log.block_index as u64,
@@ -105,7 +240,7 @@ pub fn extract_pool_events(
             r#type: Some(BurnEvent(events::pool_event::Burn {
                 owner: Hex(&burn.sender).to_string(),  // V2: Burn 事件中的 sender 是 LP 提供者
                 origin: from.to_string(),
-                amount: "0".to_string(),  // V2: LP Token 销毁量，需从 Transfer 事件计算
+                amount,  // V2: LP Token 销毁量，来自 Transfer
                 amount_0: amount0.into(),
                 amount_1: amount1.into(),
                 tick_lower: "0".to_string(),  // V2: 无 tick
@@ -136,17 +271,16 @@ pub fn extract_pool_sqrt_prices(
     pool_sqrt_prices: &mut Vec<events::PoolSqrtPrice>,
     log: &Log,
     pool_address: &str,
+    _pool: &Pool,
 ) {
-    // V2: 仅处理 Sync 事件，后续需要改为 PairReserves
+    // V2: 仅处理 Sync 事件，用 reserve0/1 填充
     if abi::pair::events::Sync::match_log(log) {
-        let _event = abi::pair::events::Sync::decode(log).unwrap();
-        // V2: Sync 事件包含 reserve0 和 reserve1
-        // 后续需要创建 PairReserves 类型替换 PoolSqrtPrice
+        let event = abi::pair::events::Sync::decode(log).unwrap();
         pool_sqrt_prices.push(events::PoolSqrtPrice {
             pool_address: pool_address.to_string(),
             ordinal: log.ordinal,
-            sqrt_price: "0".to_string(),  // V2: 暂时填 0
-            tick: "0".to_string(),
+            sqrt_price: event.reserve0.to_string(), // V2: reserve0
+            tick: event.reserve1.to_string(),       // V2: reserve1
             initialized: false,
         });
     }

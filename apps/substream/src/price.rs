@@ -1,19 +1,25 @@
-use crate::{constants, math, Erc20Token, Pool};
+use crate::{abi, constants, math, Erc20Token, Pool};
 use std::ops::{Div, Mul};
 use std::str;
 use std::str::FromStr;
 use substreams::log;
 use substreams::scalar::{BigDecimal, BigInt};
 use substreams::store::{StoreGet, StoreGetBigDecimal, StoreGetBigInt, StoreGetProto, StoreGetRaw};
+use substreams_ethereum::rpc::RpcBatch;
+
+pub struct OraclePrice {
+    pub price: BigDecimal,
+    pub round_id: BigInt,
+}
 
 // V2: 使用 constants 模块中的白名单配置
 pub use constants::WHITELIST_TOKENS;
 
-// V2: WETH 地址（从白名单中提取，两链相同 - 确定性部署）
+// V2: vETH 为 ERC20 形式（无需包装 ETH）
 const WETH_ADDRESS: &str = "0xe91d02e66a9152fee1bc79c1830121f6507a4f6d"; // vETH
 
-// V2: USDC 地址（用于 ETH/USD 价格查询）
-const USDC_ADDRESS: &str = "0x46a906fca4487c87f0d89d2d0824ec57bdaa947d"; // vUSDC
+// V2: vUSDT 地址（用于 ETH/USD 价格回退查询）
+const USDT_ADDRESS: &str = "0xbacdbe38df8421d0aa90262beb1c20d32a634fe7"; // vUSDT
 
 // V2: 稳定币列表（从白名单中提取）
 pub const STABLE_COINS: [&str; 3] = [
@@ -58,6 +64,7 @@ pub fn find_eth_per_token(
     tokens_whitelist_pools_store: &StoreGetRaw,
     total_native_amounts_store: &StoreGetBigDecimal,
     prices_store: &StoreGetBigDecimal,
+    bundle_eth_price_usd: &BigDecimal,
 ) -> BigDecimal {
     log::debug!("finding ETH per token for {} in pool {}", token_address, pool_address);
     if token_address.eq(WETH_ADDRESS) {
@@ -69,9 +76,8 @@ pub fn find_eth_per_token(
 
     if STABLE_COINS.contains(&token_address.as_str()) {
         log::debug!("token addr: {} is a stable coin", token_address);
-        let eth_price_usd = get_eth_price_in_usd(prices_store, ord);
-        log::info!("eth_price_usd {}", eth_price_usd);
-        price_so_far = math::safe_div(&BigDecimal::one(), &eth_price_usd);
+        log::info!("eth_price_usd {}", bundle_eth_price_usd);
+        price_so_far = math::safe_div(&BigDecimal::one(), &bundle_eth_price_usd);
     } else {
         // TODO: @eduard change this once the changes for store of list has been merged
         let wl = match tokens_whitelist_pools_store.get_last(&format!("token:{token_address}")) {
@@ -96,7 +102,7 @@ pub fn find_eth_per_token(
 
         for pool_address in whitelisted_pools.iter() {
             log::debug!("checking pool: {}", pool_address);
-            let pool = match pools_store.get_last(format!("pool:{pool_address}")) {
+            let pool = match pools_store.get_last(format!("pair:{pool_address}")) {
                 None => continue,
                 Some(p) => p,
             };
@@ -267,18 +273,18 @@ pub fn find_eth_per_token(
     return price_so_far;
 }
 
-// V2: 动态查找 WETH/USDC pair 以获取 ETH/USD 价格
+// V2: 动态查找 vETH/vUSDT pair 以获取 ETH/USD 价格
 pub fn get_eth_price_in_usd(prices_store: &StoreGetBigDecimal, ordinal: u64) -> BigDecimal {
     // V2: 使用 pair key 而非硬编码的 pool 地址
-    // 尝试从 WETH/USDC pair 查询价格
-    let key = format!("pair:{}:{}", WETH_ADDRESS, USDC_ADDRESS);
+    // 回退使用 vETH/vUSDT pair
+    let key = format!("pair:{}:{}", WETH_ADDRESS, USDT_ADDRESS);
     log::debug!("Looking for ETH/USD price with key: {}", key);
-    
+
     return match prices_store.get_at(ordinal, &key) {
         None => {
             log::debug!("ETH/USD price not found, trying reverse pair");
             // V2: 尝试反向 pair
-            let reverse_key = format!("pair:{}:{}", USDC_ADDRESS, WETH_ADDRESS);
+            let reverse_key = format!("pair:{}:{}", USDT_ADDRESS, WETH_ADDRESS);
             match prices_store.get_at(ordinal, &reverse_key) {
                 None => {
                     log::debug!("ETH/USD price not found in reverse pair either");
@@ -292,4 +298,48 @@ pub fn get_eth_price_in_usd(prices_store: &StoreGetBigDecimal, ordinal: u64) -> 
         }
         Some(price) => price,
     };
+}
+
+pub fn get_eth_price_from_oracle() -> Option<OraclePrice> {
+    let candidates = [
+        constants::SEPOLIA_ORACLE_ETH_USD,
+        constants::SCROLL_SEPOLIA_ORACLE_ETH_USD,
+    ];
+
+    for address in candidates {
+        if let Some(price) = oracle_price_for(address) {
+            if price.price > BigDecimal::zero() {
+                return Some(price);
+            }
+        }
+    }
+
+    None
+}
+
+fn oracle_price_for(address: &str) -> Option<OraclePrice> {
+    let address_bytes = hex::decode(address.trim_start_matches("0x")).ok()?;
+    let batch = RpcBatch::new();
+    let responses = batch
+        .add(abi::oracle::functions::Decimals {}, address_bytes.clone())
+        .add(abi::oracle::functions::LatestRoundData {}, address_bytes)
+        .execute()
+        .ok()?
+        .responses;
+
+    let decimals = RpcBatch::decode::<_, abi::oracle::functions::Decimals>(&responses[0])?;
+    let (round_id, answer, _, _, _) =
+        RpcBatch::decode::<_, abi::oracle::functions::LatestRoundData>(&responses[1])?;
+
+    let answer_str = answer.to_string();
+    if answer_str.starts_with('-') {
+        return None;
+    }
+    let mut scale = BigDecimal::one();
+    for _ in 0..decimals.to_u64() {
+        scale = scale.mul(BigDecimal::from(10 as i32));
+    }
+    let price = BigDecimal::from_str(&answer_str).ok()?.div(scale);
+
+    Some(OraclePrice { price, round_id })
 }

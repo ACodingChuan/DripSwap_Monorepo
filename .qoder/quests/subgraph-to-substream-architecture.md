@@ -333,11 +333,11 @@ getEthPriceInUSD() 流程:
 #### 2.5.2 Oracle 配置
 
 **Sepolia 链**:
-- Oracle 地址:待配置(ETH/USD Price Feed)
+- Oracle 地址:0x694aa1769357215de4fac081bf1f309adc325306 (ETH/USD Price Feed)
 - Substreams Endpoint:`https://sepolia.substreams.pinax.network:443`
 
 **Scroll Sepolia 链**:
-- Oracle 地址:待配置(ETH/USD Price Feed)
+- Oracle 地址:0x59f1ec1f10bd7ed9b938431086bc1d9e233ecf41 (ETH/USD Price Feed)
 - Substreams Endpoint:`https://scrsepolia.substreams.pinax.network:443`
 
 **通用配置**:
@@ -391,8 +391,8 @@ findEthPerToken(token) 流程:
 - Substreams Endpoint:`https://sepolia.substreams.pinax.network:443`
 
 **合约地址**:
-- Factory 合约:待配置
-- Oracle 合约(ETH/USD):待配置
+- Factory 合约:0x6C9258026A9272368e49bBB7D0A78c17BBe284BF
+- Oracle 合约(ETH/USD):0x694aa1769357215de4fac081bf1f309adc325306
 
 **Substreams 配置**:
 ```yaml
@@ -403,9 +403,9 @@ initialBlocks:
 
 params:
   map_pools_created:
-    factory_address: "<Sepolia Factory 地址>"
+    factory_address: "0x6C9258026A9272368e49bBB7D0A78c17BBe284BF"
   store_eth_price_from_oracle:
-    oracle_address: "<Sepolia Oracle 地址>"
+    oracle_address: "0x694aa1769357215de4fac081bf1f309adc325306"
 ```
 
 #### 2.6.2 Scroll Sepolia 链配置
@@ -416,8 +416,8 @@ params:
 - Substreams Endpoint:`https://scrsepolia.substreams.pinax.network:443`
 
 **合约地址**:
-- Factory 合约:待配置
-- Oracle 合约(ETH/USD):待配置
+- Factory 合约:0x6C9258026A9272368e49bBB7D0A78c17BBe284BF
+- Oracle 合约(ETH/USD):0x59f1ec1f10bd7ed9b938431086bc1d9e233ecf41
 
 **Substreams 配置**:
 ```yaml
@@ -428,9 +428,9 @@ initialBlocks:
 
 params:
   map_pools_created:
-    factory_address: "<Scroll Sepolia Factory 地址>"
+    factory_address: "0x6C9258026A9272368e49bBB7D0A78c17BBe284BF"
   store_eth_price_from_oracle:
-    oracle_address: "<Scroll Sepolia Oracle 地址>"
+    oracle_address: "0x59f1ec1f10bd7ed9b938431086bc1d9e233ecf41"
 ```
 
 #### 2.6.3 Pinax 认证配置

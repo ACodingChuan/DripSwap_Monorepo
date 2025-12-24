@@ -35,6 +35,8 @@ type Bundle @entity {
   id: ID!
   # price of ETH in usd
   ethPriceUSD: BigDecimal!
+  # oracle round id (Chainlink)
+  oracleRoundId: BigInt!
 }
 
 type Token @entity {
@@ -53,7 +55,7 @@ type Token @entity {
   # volume in derived USD
   volumeUSD: BigDecimal!
   # volume in USD even on pools with less reliable USD values
-  untrackedVolumeUSD: BigDecimal!
+  volumeUSDUntracked: BigDecimal!
   # fees in USD
   feesUSD: BigDecimal!
   # transactions across all pools that include this token
@@ -72,6 +74,8 @@ type Token @entity {
   whitelistPools: [Pool!]!
   # derived fields
   tokenDayData: [TokenDayData!]! @derivedFrom(field: "token")
+  tokenHourData: [TokenHourData!]! @derivedFrom(field: "token")
+  tokenMinuteData: [TokenMinuteData!]! @derivedFrom(field: "token")
 }
 
 type Pool @entity {
@@ -309,6 +313,9 @@ type Mint @entity (immutable: true) {
   amount1: BigDecimal!
   # derived amount based on available prices of tokens
   amountUSD: BigDecimal
+  # optional fee fields (protocol fee mint)
+  feeTo: Bytes
+  feeLiquidity: BigDecimal
   # lower tick of the position
   tickLower: BigInt!
   # upper tick of the position
@@ -342,6 +349,9 @@ type Burn @entity (immutable: true) {
   amount1: BigDecimal!
   # derived amount based on available prices of tokens
   amountUSD: BigDecimal
+  # optional fee fields (protocol fee mint)
+  feeTo: Bytes
+  feeLiquidity: BigDecimal
   # lower tick of position
   tickLower: BigInt!
   # upper tick of position
@@ -659,4 +669,78 @@ type TokenHourData @entity {
   low: BigDecimal!
   # close price USD
   close: BigDecimal!
+}
+
+type TokenMinuteData @entity {
+  # token address concatenated with date
+  id: ID!
+  # unix timestamp for start of minute
+  periodStartUnix: Int!
+  # pointer to token
+  token: Token!
+  # volume in token units
+  volume: BigDecimal!
+  # volume in derived USD
+  volumeUSD: BigDecimal!
+  # volume in USD even on pools with less reliable USD values
+  volumeUSDUntracked: BigDecimal!
+  # liquidity across all pools in token units
+  totalValueLocked: BigDecimal!
+  # liquidity across all pools in derived USD
+  totalValueLockedUSD: BigDecimal!
+  # price at end of period in USD
+  priceUSD: BigDecimal!
+  # fees in USD
+  feesUSD: BigDecimal!
+  # opening price USD
+  open: BigDecimal!
+  # high price USD
+  high: BigDecimal!
+  # low price USD
+  low: BigDecimal!
+  # close price USD
+  close: BigDecimal!
+}
+
+type User @entity {
+  id: ID!
+}
+
+type PairTokenLookup @entity {
+  id: ID!
+  pair: Pool!
+}
+
+type BridgeTransfer @entity {
+  id: ID!
+  txHash: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  messageId: Bytes!
+  sender: Bytes!
+  token: Bytes!
+  pool: Bytes!
+  dstSelector: BigInt!
+  receiverChainName: String!
+  receiver: Bytes!
+  amount: BigDecimal!
+  payInLink: Boolean!
+  ccipFee: BigDecimal!
+  serviceFeePaid: BigDecimal!
+}
+
+type BridgeConfigEvent @entity {
+  id: ID!
+  eventName: String!
+  token: Bytes
+  pool: Bytes
+  minAmount: BigInt
+  maxAmount: BigInt
+  nativeAllowed: Boolean
+  linkAllowed: Boolean
+  newFee: BigInt
+  newCollector: Bytes
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  transactionHash: Bytes!
 }

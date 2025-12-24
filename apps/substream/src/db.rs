@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+use std::str::FromStr;
 use std::ops::Div;
 use substreams::key;
 use substreams::pb::substreams::store_delta::Operation;
@@ -15,14 +17,18 @@ use crate::pb::uniswap::events::PoolSqrtPrice;
 use crate::pb::uniswap::{events, Events, Pool};
 use crate::uniswap::{Erc20Token, Pools};
 use crate::utils::{self, pool_windows_id_fields, time_as_i64_address_as_str, token_windows_id_fields};
+use crate::{abi, constants, rpc};
+use crate::ethpb::v2::Block;
 
 // -------------------
 //  Map Bundle Entities
 // -------------------
 pub fn created_bundle_entity_change(tables: &mut Tables) {
+    let round_id = BigInt::zero();
     tables
         .create_row("Bundle", "1")
-        .set_bigdecimal("ethPriceUSD", &"0.0".to_string());
+        .set_bigdecimal("ethPriceUSD", &"0.0".to_string())
+        .set_bigint("oracleRoundId", &round_id);
 }
 
 pub fn bundle_store_eth_price_usd_bundle_entity_change(
@@ -30,7 +36,18 @@ pub fn bundle_store_eth_price_usd_bundle_entity_change(
     derived_eth_prices_deltas: &Deltas<DeltaBigDecimal>,
 ) {
     for delta in derived_eth_prices_deltas.iter().key_first_segment_eq("bundle") {
-        tables.update_row("Bundle", "1").set("ethPriceUSD", &delta.new_value);
+        let field_name = match key::last_segment(&delta.key) {
+            "bundle" => "ethPriceUSD",
+            "roundId" => "oracleRoundId",
+            _ => continue,
+        };
+
+        if field_name == "oracleRoundId" {
+            let round_id = BigInt::from_str(&delta.new_value.to_string()).unwrap_or_default();
+            tables.update_row("Bundle", "1").set_bigint(field_name, &round_id);
+        } else {
+            tables.update_row("Bundle", "1").set(field_name, &delta.new_value);
+        }
     }
 }
 
@@ -38,7 +55,7 @@ pub fn bundle_store_eth_price_usd_bundle_entity_change(
 //  Map Factory Entities
 // -------------------
 pub fn factory_created_factory_entity_change(tables: &mut Tables) {
-    let id = "0x1F98431c8aD98523631AE4a59f267346ea31F984";
+    let id = constants::UNISWAP_V2_FACTORY;
 
     let bigint0 = BigInt::zero();
     let bigdecimal0 = BigDecimal::zero();
@@ -60,7 +77,7 @@ pub fn factory_created_factory_entity_change(tables: &mut Tables) {
 
 pub fn pool_created_factory_entity_change(tables: &mut Tables, pool_count_deltas: &Deltas<DeltaBigInt>) {
     pool_count_deltas.iter().for_each(|delta| {
-        let id = "0x1F98431c8aD98523631AE4a59f267346ea31F984".to_string();
+        let id = constants::UNISWAP_V2_FACTORY.to_string();
         tables.update_row("Factory", &id).set("poolCount", &delta.new_value);
     })
 }
@@ -68,7 +85,7 @@ pub fn pool_created_factory_entity_change(tables: &mut Tables, pool_count_deltas
 pub fn tx_count_factory_entity_change(tables: &mut Tables, tx_count_deltas: &Deltas<DeltaBigInt>) {
     for delta in tx_count_deltas.iter().key_first_segment_eq("factory") {
         tables
-            .update_row("Factory", "0x1F98431c8aD98523631AE4a59f267346ea31F984")
+            .update_row("Factory", constants::UNISWAP_V2_FACTORY)
             .set("txCount", &delta.new_value);
     }
 }
@@ -86,7 +103,7 @@ pub fn swap_volume_factory_entity_change(tables: &mut Tables, swaps_volume_delta
         ])
     {
         tables
-            .update_row("Factory", "0x1F98431c8aD98523631AE4a59f267346ea31F984")
+            .update_row("Factory", constants::UNISWAP_V2_FACTORY)
             .set(key::last_segment(&delta.key), &delta.new_value);
     }
 }
@@ -103,7 +120,7 @@ pub fn tvl_factory_entity_change(tables: &mut Tables, derived_factory_tvl_deltas
         ])
     {
         tables
-            .update_row("Factory", "0x1F98431c8aD98523631AE4a59f267346ea31F984")
+            .update_row("Factory", constants::UNISWAP_V2_FACTORY)
             .set(key::last_segment(&delta.key), &delta.new_value);
     }
 }
@@ -404,6 +421,9 @@ fn create_token_windows_entity(
         "TokenHourData" => {
             row.set("periodStartUnix", (time_id * 3600) as i32);
         }
+        "TokenMinuteData" => {
+            row.set("periodStartUnix", (time_id * 60) as i32);
+        }
         _ => {}
     }
 }
@@ -488,6 +508,78 @@ pub fn whitelist_token_entity_change(tables: &mut Tables, tokens_whitelist_pools
         tables
             .update_row("Token", format!("0x{token_address}"))
             .set("whitelistPools", &whitelist);
+    }
+}
+
+// -------------------
+//  Map User Entities
+// -------------------
+pub fn users_created_entity_changes(
+    tables: &mut Tables,
+    pool_events: &[events::PoolEvent],
+    transfer_users: &[String],
+) {
+    let mut users: HashSet<String> = HashSet::new();
+
+    for pool_event in pool_events {
+        match pool_event.r#type.as_ref().unwrap() {
+            SwapEvent(swap) => {
+                push_user(&mut users, &swap.sender);
+                push_user(&mut users, &swap.recipient);
+                push_user(&mut users, &swap.origin);
+            }
+            MintEvent(mint) => {
+                push_user(&mut users, &mint.owner);
+                push_user(&mut users, &mint.sender);
+                push_user(&mut users, &mint.origin);
+            }
+            BurnEvent(burn) => {
+                push_user(&mut users, &burn.owner);
+                push_user(&mut users, &burn.origin);
+            }
+        }
+    }
+
+    for user in transfer_users {
+        push_user(&mut users, user);
+    }
+
+    for user in users {
+        tables.create_row("User", format!("0x{user}"));
+    }
+}
+
+fn push_user(users: &mut HashSet<String>, address: &str) {
+    let normalized = address.trim_start_matches("0x").to_lowercase();
+    if normalized.is_empty() {
+        return;
+    }
+    if normalized == constants::ZERO_ADDRESS.trim_start_matches("0x") {
+        return;
+    }
+    users.insert(normalized);
+}
+
+// -----------------------------
+//  Map PairTokenLookup Entities
+// -----------------------------
+pub fn pair_token_lookup_entity_changes(tables: &mut Tables, pools: &Pools) {
+    for pool in &pools.pools {
+        let token0_addr = match pool.token0.as_ref() {
+            Some(token) => token.address.as_str(),
+            None => continue,
+        };
+        let token1_addr = match pool.token1.as_ref() {
+            Some(token) => token.address.as_str(),
+            None => continue,
+        };
+        let pool_id = format!("0x{}", pool.address);
+
+        let id0 = format!("0x{token0_addr}-0x{token1_addr}");
+        tables.create_row("PairTokenLookup", id0).set("pair", &pool_id);
+
+        let id1 = format!("0x{token1_addr}-0x{token0_addr}");
+        tables.create_row("PairTokenLookup", id1).set("pair", &pool_id);
     }
 }
 
@@ -1012,6 +1104,7 @@ pub fn swaps_mints_burns_created_entity_change(
     pool_events: &Vec<events::PoolEvent>,
     tx_count_store: StoreGetBigInt,
     store_eth_prices: StoreGetBigDecimal,
+    fee_mints: &std::collections::HashMap<String, crate::FeeMint>,
 ) {
     for pool_event in pool_events {
         if pool_event.r#type.is_none() {
@@ -1120,7 +1213,7 @@ pub fn swaps_mints_burns_created_entity_change(
                         &token1_derived_eth_price,
                         &bundle_eth_price,
                     );
-                    tables
+                    let row = tables
                         .create_row("Burn", &event_primary_key)
                         .set("transaction", format!("0x{transaction_id}"))
                         .set("pool", format!("0x{pool_address}"))
@@ -1136,6 +1229,12 @@ pub fn swaps_mints_burns_created_entity_change(
                         .set_bigint("tickLower", &burn.tick_lower)
                         .set_bigint("tickUpper", &burn.tick_upper)
                         .set("logIndex", pool_event.log_index);
+
+                    let fee_key = format!("{transaction_id}:{pool_address}");
+                    if let Some(fee_mint) = fee_mints.get(&fee_key) {
+                        row.set("feeTo", &hex::decode(&fee_mint.fee_to).unwrap())
+                            .set("feeLiquidity", &fee_mint.fee_liquidity);
+                    }
                 }
             };
         }
@@ -1612,7 +1711,7 @@ pub fn token_windows_update(
 pub fn create_token_windows(tables: &mut Tables, tx_count_deltas: &Deltas<DeltaBigInt>) {
     for delta in tx_count_deltas
         .iter()
-        .key_first_segment_in(["TokenDayData", "TokenHourData"])
+        .key_first_segment_in(["TokenDayData", "TokenHourData", "TokenMinuteData"])
         .operation_not_eq(Operation::Delete)
         .filter(|d| d.new_value.eq(&BigInt::one()))
     {
@@ -1632,7 +1731,7 @@ pub fn create_token_windows(tables: &mut Tables, tx_count_deltas: &Deltas<DeltaB
 pub fn swap_volume_token_windows(tables: &mut Tables, swaps_volume_deltas: &Deltas<DeltaBigDecimal>) {
     for delta in swaps_volume_deltas
         .iter()
-        .key_first_segment_in(["TokenDayData", "TokenHourData"])
+        .key_first_segment_in(["TokenDayData", "TokenHourData", "TokenMinuteData"])
         .operation_not_eq(Operation::Delete)
     {
         let (table_name, time_id, token_address) = pool_windows_id_fields(&delta.key);
@@ -1654,7 +1753,7 @@ pub fn swap_volume_token_windows(tables: &mut Tables, swaps_volume_deltas: &Delt
 pub fn total_value_locked_usd_token_windows(tables: &mut Tables, derived_tvl_deltas: &Deltas<DeltaBigDecimal>) {
     for delta in derived_tvl_deltas
         .iter()
-        .key_first_segment_in(["TokenDayData", "TokenHourData"])
+        .key_first_segment_in(["TokenDayData", "TokenHourData", "TokenMinuteData"])
         .operation_not_eq(Operation::Delete)
     {
         let (table_name, time_id, token_address) = pool_windows_id_fields(&delta.key);
@@ -1672,6 +1771,7 @@ pub fn total_value_locked_token_windows(
 ) {
     let day_id = timestamp / 86400;
     let hour_id = timestamp / 3600;
+    let minute_id = timestamp / 60;
 
     for delta in token_tvl_deltas
         .iter()
@@ -1691,6 +1791,12 @@ pub fn total_value_locked_token_windows(
             format!("0x{token_address}-{hour_id}"),
             &delta.new_value,
         );
+        total_value_locked_token_windows_update(
+            tables,
+            "TokenMinuteData",
+            format!("0x{token_address}-{minute_id}"),
+            &delta.new_value,
+        );
     }
 }
 
@@ -1708,7 +1814,7 @@ fn total_value_locked_token_windows_update(
 pub fn total_prices_token_windows(tables: &mut Tables, derived_eth_prices_deltas: &Deltas<DeltaBigDecimal>) {
     for delta in derived_eth_prices_deltas
         .iter()
-        .key_first_segment_in(["TokenDayData", "TokenHourData"])
+        .key_first_segment_in(["TokenDayData", "TokenHourData", "TokenMinuteData"])
         .operation_not_eq(Operation::Delete)
     {
         let (table_name, time_id, token_address) = token_windows_id_fields(&delta.key);
@@ -1722,7 +1828,7 @@ pub fn total_prices_token_windows(tables: &mut Tables, derived_eth_prices_deltas
 pub fn prices_min_token_windows(tables: &mut Tables, min_token_prices_deltas: &Deltas<DeltaBigDecimal>) {
     for delta in min_token_prices_deltas
         .iter()
-        .key_first_segment_in(["TokenDayData", "TokenHourData"])
+        .key_first_segment_in(["TokenDayData", "TokenHourData", "TokenMinuteData"])
         .operation_not_eq(Operation::Delete)
         .key_last_segment_in(["low", "open"])
     {
@@ -1738,7 +1844,7 @@ pub fn prices_min_token_windows(tables: &mut Tables, min_token_prices_deltas: &D
 pub fn prices_max_token_windows(tables: &mut Tables, max_token_prices_deltas: &Deltas<DeltaBigDecimal>) {
     for delta in max_token_prices_deltas
         .iter()
-        .key_first_segment_in(["TokenDayData", "TokenHourData"])
+        .key_first_segment_in(["TokenDayData", "TokenHourData", "TokenMinuteData"])
         .operation_not_eq(Operation::Delete)
     {
         let (table_name, time_id, token_address) = token_windows_id_fields(&delta.key);
@@ -1753,7 +1859,7 @@ pub fn prices_max_token_windows(tables: &mut Tables, max_token_prices_deltas: &D
 pub fn prices_close_token_windows(tables: &mut Tables, eth_prices_deltas: &Deltas<DeltaBigDecimal>) {
     for delta in eth_prices_deltas
         .iter()
-        .key_first_segment_in(["TokenDayData", "TokenHourData"])
+        .key_first_segment_in(["TokenDayData", "TokenHourData", "TokenMinuteData"])
         .operation_eq(Operation::Delete)
     {
         let (table_name, time_id, token_address) = token_windows_id_fields(&delta.key);
@@ -1762,5 +1868,122 @@ pub fn prices_close_token_windows(tables: &mut Tables, eth_prices_deltas: &Delta
         tables
             .update_row(table_name, &token_time_id)
             .set("close", &delta.old_value);
+    }
+}
+
+// -------------------
+//  Map Bridge Entities
+// -------------------
+pub fn bridge_events_entity_changes(tables: &mut Tables, block: &Block) {
+    let mut decimals_cache: HashMap<String, u64> = HashMap::new();
+
+    for trx in block.transactions() {
+        let tx_hash = Hex(&trx.hash).to_string();
+        for (log, _call_view) in trx.logs_with_calls() {
+            let log_address = Hex(&log.address).to_string();
+            if !constants::is_bridge_address(&log_address) {
+                continue;
+            }
+
+            if abi::bridge::events::TransferInitiated::match_log(&log) {
+                let event = abi::bridge::events::TransferInitiated::decode(&log).unwrap();
+                let token_addr = Hex(&event.token).to_string();
+                let decimals = *decimals_cache.entry(token_addr.clone()).or_insert_with(|| {
+                    rpc::create_uniswap_token(&token_addr)
+                        .map(|token| token.decimals)
+                        .unwrap_or(18)
+                });
+
+                let amount = event.amount.to_decimal(decimals);
+                let ccip_fee = event.ccip_fee.to_decimal(18);
+                let service_fee_paid = event.service_fee_paid.to_decimal(18);
+                let dst_selector = event.dst_selector.clone();
+                let receiver_chain = constants::get_receiver_chain_name(&dst_selector);
+                let entity_id = format!("0x{}-{}", tx_hash, log.block_index);
+
+                tables
+                    .create_row("BridgeTransfer", &entity_id)
+                    .set("txHash", hex::decode(&tx_hash).unwrap())
+                    .set("blockNumber", block.number)
+                    .set("timestamp", block.timestamp_seconds())
+                    .set("messageId", event.message_id.to_vec())
+                    .set("sender", event.sender)
+                    .set("token", event.token)
+                    .set("pool", event.pool)
+                    .set("dstSelector", dst_selector)
+                    .set("receiverChainName", receiver_chain)
+                    .set("receiver", event.receiver)
+                    .set("amount", &amount)
+                    .set("payInLink", event.pay_in_link)
+                    .set("ccipFee", &ccip_fee)
+                    .set("serviceFeePaid", &service_fee_paid);
+
+                continue;
+            }
+
+            if abi::bridge::events::TokenPoolRegistered::match_log(&log) {
+                let event = abi::bridge::events::TokenPoolRegistered::decode(&log).unwrap();
+                let entity_id = format!("0x{}-{}", tx_hash, log.block_index);
+                let row = tables.create_row("BridgeConfigEvent", &entity_id);
+                row.set("eventName", "TokenPoolRegistered");
+                row.set("token", event.token);
+                row.set("pool", event.pool);
+                row.set("blockNumber", block.number);
+                row.set("timestamp", block.timestamp_seconds());
+                row.set("transactionHash", hex::decode(&tx_hash).unwrap());
+                continue;
+            }
+
+            if abi::bridge::events::TokenPoolRemoved::match_log(&log) {
+                let event = abi::bridge::events::TokenPoolRemoved::decode(&log).unwrap();
+                let entity_id = format!("0x{}-{}", tx_hash, log.block_index);
+                let row = tables.create_row("BridgeConfigEvent", &entity_id);
+                row.set("eventName", "TokenPoolRemoved");
+                row.set("token", event.token);
+                row.set("blockNumber", block.number);
+                row.set("timestamp", block.timestamp_seconds());
+                row.set("transactionHash", hex::decode(&tx_hash).unwrap());
+                continue;
+            }
+
+            if abi::bridge::events::LimitsUpdated::match_log(&log) {
+                let event = abi::bridge::events::LimitsUpdated::decode(&log).unwrap();
+                let entity_id = format!("0x{}-{}", tx_hash, log.block_index);
+                let row = tables.create_row("BridgeConfigEvent", &entity_id);
+                row.set("eventName", "LimitsUpdated");
+                row.set("minAmount", event.min_amount);
+                row.set("maxAmount", event.max_amount);
+                row.set("blockNumber", block.number);
+                row.set("timestamp", block.timestamp_seconds());
+                row.set("transactionHash", hex::decode(&tx_hash).unwrap());
+                continue;
+            }
+
+            if abi::bridge::events::PayMethodUpdated::match_log(&log) {
+                let event = abi::bridge::events::PayMethodUpdated::decode(&log).unwrap();
+                let entity_id = format!("0x{}-{}", tx_hash, log.block_index);
+                let row = tables.create_row("BridgeConfigEvent", &entity_id);
+                row.set("eventName", "PayMethodUpdated");
+                row.set("nativeAllowed", event.native_allowed);
+                row.set("linkAllowed", event.link_allowed);
+                row.set("blockNumber", block.number);
+                row.set("timestamp", block.timestamp_seconds());
+                row.set("transactionHash", hex::decode(&tx_hash).unwrap());
+                continue;
+            }
+
+            if abi::bridge::events::ServiceFeeUpdated::match_log(&log) {
+                let event = abi::bridge::events::ServiceFeeUpdated::decode(&log).unwrap();
+                let entity_id = format!("0x{}-{}", tx_hash, log.block_index);
+                let row = tables.create_row("BridgeConfigEvent", &entity_id);
+                row.set("eventName", "ServiceFeeUpdated");
+                row.set("newFee", event.new_fee);
+                row.set("newCollector", event.new_collector);
+                row.set("blockNumber", block.number);
+                row.set("timestamp", block.timestamp_seconds());
+                row.set("transactionHash", hex::decode(&tx_hash).unwrap());
+                continue;
+            }
+        }
     }
 }

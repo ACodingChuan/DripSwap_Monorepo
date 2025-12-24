@@ -128,6 +128,7 @@ modules:
     inputs:
       - source: sf.substreams.v1.Clock
       - map: map_extract_data_types
+      - store: store_pools_created
     doc: |
       V2: 存储 Pair 的 reserve0/reserve1（从 Sync 事件读取，非 StorageChange）。
 
@@ -163,9 +164,9 @@ modules:
     valueType: bigdecimal
     inputs:
       - map: map_extract_data_types
+      - store: store_pools_created
     doc: |
-      `BigDecimal` setter store for the native amounts out of any `Event` type: `Mint`, `Swap` and `Burn` amounts
-      (amount0 and amount1).
+      V2: 使用 Sync reserves 写入 pool:{pair}:{token}:native，用于价格与 TVL 计算。
 
   - name: store_eth_prices
     kind: store
@@ -189,9 +190,11 @@ modules:
     updatePolicy: add
     valueType: bigdecimal
     inputs:
-      - map: map_extract_data_types
+      - store: store_native_amounts
+        mode: deltas
+      - store: store_pools_created
     doc: |
-      V2: 累加 Token 的 TVL（Mint +, Burn -, Swap 净变化）。
+      V2: 基于 Sync reserves 的增量更新 Token/Pool TVL。
 
   - name: store_derived_tvl
     kind: store
@@ -200,10 +203,12 @@ modules:
     valueType: bigdecimal
     inputs:
       - source: sf.substreams.v1.Clock
-      - map: map_extract_data_types
+      - store: store_native_amounts
+        mode: deltas
       - store: store_token_tvl
       - store: store_pools_created
       - store: store_eth_prices
+      - store: store_native_amounts
     doc: |
       V2: 计算 USD/ETH 计价的 TVL（tokenAmount * derivedETH * ethPrice）。
 
@@ -264,6 +269,7 @@ modules:
     initialBlock: 9573280  # V2: Sepolia Factory 部署区块
     inputs:
       - source: sf.substreams.v1.Clock
+      - source: sf.ethereum.type.v2.Block
       - store: store_pool_count
         mode: deltas
       - store: store_total_tx_counts
@@ -276,6 +282,7 @@ modules:
         mode: deltas
       - map: map_extract_data_types
       - map: map_pools_created
+      - store: store_pools_created
       - store: store_pool_sqrt_price
         mode: deltas
       - store: store_pool_sqrt_price
@@ -306,5 +313,3 @@ modules:
       type: proto:sf.substreams.entity.v1.EntityChanges
     doc: |
       V2: 输出 EntityChanges，包含 Pair/Token/Transaction/Swap/Mint/Burn 等实体。
-
-

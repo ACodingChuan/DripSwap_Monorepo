@@ -2,6 +2,7 @@
 // 所有地址使用确定性部署（ERC2470 + CREATE2）
 
 use phf::phf_set;
+use substreams::scalar::BigInt;
 
 // ========== Factory 地址 ==========
 // 两链相同（确定性部署）
@@ -17,6 +18,14 @@ pub const SCROLL_SEPOLIA_ORACLE_ETH_USD: &str = "0x59f1ec1f10bd7ed9b938431086bc1
 // ========== 初始区块号 ==========
 pub const SEPOLIA_INITIAL_BLOCK: u64 = 9573280;
 pub const SCROLL_SEPOLIA_INITIAL_BLOCK: u64 = 14731854;
+
+// ========== Bridge 地址 ==========
+pub const SEPOLIA_BRIDGE_ADDRESS: &str = "0x9347b320e42877855cc6e66e5e5d6f18216ceee7";
+pub const SCROLL_SEPOLIA_BRIDGE_ADDRESS: &str = "0xbe2ccda786bf69b0ae4251e6b34df212cef4f645";
+
+// ========== CCIP 目标链标识 ==========
+pub const CCIP_SELECTOR_SEPOLIA: &str = "16015286601757825753";
+pub const CCIP_SELECTOR_SCROLL_SEPOLIA: &str = "2279865765895943307";
 
 // ========== 白名单代币（两链相同 - 确定性部署） ==========
 pub static WHITELIST_TOKENS: phf::Set<&'static str> = phf_set! {
@@ -57,6 +66,20 @@ pub fn get_initial_block_for_chain(chain_id: u64) -> u64 {
         11155111 => SEPOLIA_INITIAL_BLOCK,
         534351 => SCROLL_SEPOLIA_INITIAL_BLOCK,
         _ => SEPOLIA_INITIAL_BLOCK,
+    }
+}
+
+pub fn is_bridge_address(address: &str) -> bool {
+    let addr = address.trim_start_matches("0x").to_lowercase();
+    addr == SEPOLIA_BRIDGE_ADDRESS.trim_start_matches("0x")
+        || addr == SCROLL_SEPOLIA_BRIDGE_ADDRESS.trim_start_matches("0x")
+}
+
+pub fn get_receiver_chain_name(selector: &BigInt) -> &'static str {
+    match selector.to_string().as_str() {
+        CCIP_SELECTOR_SEPOLIA => "Ethereum Sepolia",
+        CCIP_SELECTOR_SCROLL_SEPOLIA => "Scroll Sepolia",
+        _ => "Unknown",
     }
 }
 

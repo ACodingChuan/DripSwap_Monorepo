@@ -43,7 +43,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "Next steps:"
     echo "  1. Test locally:"
-    echo "     substreams gui substreams-v2.yaml graph_out -e sepolia.substreams.pinax.network:443 -t +100"
+    echo "     substreams gui substreams-v2.yaml graph_out -e https://sepolia.substreams.pinax.network:443 -t +100"
     echo ""
     echo "  2. Package for deployment:"
     echo "     substreams pack substreams-v2.yaml"

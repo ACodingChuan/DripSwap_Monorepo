@@ -108,8 +108,8 @@ graph_out (EntityChanges)
 
 | 网络 | Chain ID | Endpoint |
 |------|----------|----------|
-| Sepolia | 11155111 | sepolia.substreams.pinax.network:443 |
-| Scroll Sepolia | 534351 | scrsepolia.substreams.pinax.network:443 |
+| Sepolia | 11155111 | https://sepolia.substreams.pinax.network:443 |
+| Scroll Sepolia | 534351 | https://scrsepolia.substreams.pinax.network:443 |
 
 ## 🔑 认证信息
 

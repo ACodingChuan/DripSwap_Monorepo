@@ -65,22 +65,8 @@
 
 **实现情况**：
 - ✅ 文档中详细描述 Oracle 查询策略（2.5节）
-- ⚠️ **代码实现待补充**：当前使用的是白名单池子价格，需要添加 Oracle 合约调用
-- 📝 **需要配置**：Oracle 合约地址（Sepolia 和 Scroll Sepolia）
-
-**待完成事项**：
-```rust
-// 需要在 price.rs 中添加
-pub fn get_eth_price_from_oracle(
-    clock: &Clock,
-    oracle_address: &str,
-) -> OraclePriceResult {
-    // 1. 调用 Oracle.latestRoundData()
-    // 2. 解析 answer 和 roundId
-    // 3. 处理 decimals
-    // 4. 返回 OraclePriceResult { price, roundId }
-}
-```
+- ✅ **代码已实现**：Chainlink Oracle `latestRoundData()` + `decimals`，失败回退 WETH/USDC 池价
+- ✅ **Oracle 地址已配置**：Sepolia / Scroll Sepolia
 
 ---
 
@@ -99,7 +85,7 @@ type Bundle {
 - ✅ 文档中已说明（2.4.1节）
 - ✅ `schema.graphql` 中已添加
 - ✅ `schema.sql` 中已添加
-- ⚠️ **代码实现待补充**：`db.rs` 中 Bundle 的 EntityChange 需要包含 roundId
+- ✅ **代码已实现**：`db.rs` + `store_eth_prices` 写入 roundId
 
 ---
 
@@ -168,56 +154,23 @@ type Bundle {
 
 ---
 
-### ⚠️ 部分完成/待补充的要求
+### ✅ 已完成的关键补齐
 
-#### 1. ⚠️ Oracle 价格查询的代码实现
+#### 1. ✅ Oracle 价格查询的代码实现
 
 **现状**：
 - ✅ 文档中已详细说明逻辑
 - ✅ 参考了 `pricing.ts` 的实现
-- ❌ **Rust 代码中未实现 Oracle 调用**（当前使用白名单池子价格）
-
-**待完成**：
-```rust
-// 在 src/price.rs 中添加
-use ethabi::Contract;
-use substreams_ethereum::pb::eth::v2 as eth;
-
-pub fn get_eth_price_from_oracle(
-    block: &eth::Block,
-    oracle_address: &str,
-) -> Result<OraclePriceResult, Error> {
-    // 实现 Oracle.latestRoundData() 调用
-    // 返回 { price, roundId }
-}
-```
-
-**需要配置**：
-- Sepolia Oracle 地址
-- Scroll Sepolia Oracle 地址
+- ✅ **Rust 代码已实现 Oracle 调用**（失败回退白名单池子价格）
+- ✅ Sepolia / Scroll Sepolia Oracle 地址已配置
 
 ---
 
-#### 2. ⚠️ Bundle.roundId 字段的实际写入
+#### 2. ✅ Bundle.roundId 字段的实际写入
 
 **现状**：
 - ✅ Schema 中已定义
-- ❌ **db.rs 中的 create_bundle_entity 未包含 roundId**
-
-**待完成**：
-```rust
-// 在 db.rs 中修改
-pub fn create_bundle_entity(
-    tables: &mut Tables,
-    eth_price: &BigDecimal,
-    round_id: &BigInt,  // 新增参数
-) {
-    tables
-        .create_row("bundle", "1")
-        .set("ethPrice", eth_price)
-        .set("roundId", round_id);  // 新增字段
-}
-```
+- ✅ **db.rs 中已写入 roundId**
 
 ---
 
@@ -288,8 +241,7 @@ substreams run dripswap-v2-sepolia-v0.1.0.spkg map_pools_created \
 - ✅ **Phase 2（事件处理适配）**：95% 完成
   - ✅ 核心 Map/Store 模块已实现
   - ✅ 编译通过
-  - ⚠️ Oracle 价格查询待补充（可在测试后添加）
-  - ⚠️ Bundle.roundId 待实际写入（依赖 Oracle）
+  - ⚠️ TokenMinuteData 归档机制待补充
 - 🔄 **Phase 3（测试与验证）**：20% 完成
   - ✅ SPKG 打包成功
   - 🔄 正在测试 `map_pools_created`（endpoint 问题已修复）
@@ -315,7 +267,7 @@ substreams run dripswap-v2-sepolia-v0.1.0.spkg map_pools_created \
 
 ### 短期计划（1-2天）
 1. ⏳ 完成所有模块的功能测试
-2. ⏳ 补充 Oracle 价格查询代码（如有需要）
+2. ⏳ 验证 Oracle roundId 与价格一致性
 3. ⏳ 修复测试中发现的问题
 
 ### 中期计划（1周）
@@ -336,10 +288,10 @@ substreams run dripswap-v2-sepolia-v0.1.0.spkg map_pools_created \
 ### 设计决策
 - ✅ 采用单数据库方案（而非独立数据库），简化架构
 - ✅ 保留 Subgraph 表作为备份，支持快速回滚
-- ✅ Oracle 价格查询可后续补充，不影响核心功能测试
+- ✅ Oracle 价格查询已接入（失败回退池价）
 
 ### 技术债务
-- Oracle 合约地址待确定（测试网可能没有官方 Chainlink）
+- Oracle 合约地址已确定，需验证测试网可用性与稳定性
 - Bridge 事件处理逻辑需要根据实际合约调整
 - OHLC 数据的 Store 清理策略需要根据实际数据量调优
 
