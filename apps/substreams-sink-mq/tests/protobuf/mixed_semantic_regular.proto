@@ -1,0 +1,341 @@
+syntax = "proto3";
+
+import "sf/substreams/sink/sql/schema/v1/schema.proto";
+
+package test.mixed.v1;
+
+// ============================================================================
+// MIXED SEMANTIC + REGULAR TYPES TEST
+// ============================================================================
+// This file tests realistic scenarios where semantic types are mixed
+// with regular protobuf types, representing real-world usage patterns
+
+message MixedSemanticRegular {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "mixed_semantic_regular"
+    };
+
+    // ========================================================================
+    // BLOCKCHAIN TRANSACTION - MIXED SEMANTIC/REGULAR
+    // ========================================================================
+
+    // Primary key with semantic type
+    string tx_hash = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true,
+        semantic_type: "hash"
+    }];
+
+    // Regular protobuf types for basic data
+    uint64 block_number = 2;
+    uint32 transaction_index = 3;
+    uint32 gas_limit = 4;
+    uint64 gas_used = 5;
+    bool success = 6;
+
+    // Semantic types for blockchain-specific data
+    string from_address = 7 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string to_address = 8 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string value = 9 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    string gas_price = 10 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    // Mixed: regular uint64 for simple timestamp vs semantic for precise time
+    uint64 block_timestamp = 11 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "unix_timestamp"
+    }];
+
+    // Regular string for simple text
+    string method_name = 12;
+    string contract_name = 13;
+
+    // Semantic type for contract address but regular bytes for raw data
+    string contract_address = 14 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    bytes input_data = 15;
+    bytes output_data = 16;
+
+    // Regular enum
+    TransactionType tx_type = 17;
+
+    // ========================================================================
+    // TOKEN TRANSFER - SELECTIVE SEMANTIC TYPES
+    // ========================================================================
+
+    // Semantic types only where they add value
+    string token_address = 20 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string amount = 21 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    // Regular types for metadata
+    string token_symbol = 22;
+    string token_name = 23;
+    uint32 decimals = 24;
+    double usd_value = 25;
+
+    // ========================================================================
+    // COMPLEX NESTED STRUCTURE - MIXED APPROACH
+    // ========================================================================
+
+    // Array of regular structs
+    repeated LogEntry logs = 30;
+
+    // Array with some semantic fields
+    repeated TokenTransfer transfers = 31;
+
+    // Map with regular keys but semantic values
+    map<string, string> address_labels = 32; // values could be addresses
+
+    // Regular nested message
+    GasAnalysis gas_analysis = 33;
+
+    // ========================================================================
+    // ONEOF WITH MIXED TYPES
+    // ========================================================================
+
+    oneof transaction_result {
+        SuccessResult success_result = 40;
+        ErrorResult error_result = 41;
+        RevertResult revert_result = 42;
+    }
+}
+
+// ============================================================================
+// SUPPORTING MESSAGES - MIXED SEMANTIC/REGULAR
+// ============================================================================
+
+message LogEntry {
+    uint32 log_index = 1;
+
+    // Semantic type for address
+    string contract_address = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    // Regular types for log data
+    repeated string topics = 3;
+    bytes data = 4;
+    bool removed = 5;
+}
+
+message TokenTransfer {
+    // Semantic types for critical blockchain data
+    string from_address = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string to_address = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string amount = 3 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    // Regular types for metadata
+    uint32 transfer_index = 4;
+    string token_symbol = 5;
+    bool is_fee = 6;
+}
+
+message GasAnalysis {
+    // Regular types for gas calculations
+    uint64 base_fee = 1;
+    uint64 priority_fee = 2;
+    double gas_efficiency = 3;
+    uint32 gas_percentage_used = 4;
+
+    // Semantic type for total cost
+    string total_cost_wei = 5 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+}
+
+message SuccessResult {
+    // Regular types
+    uint32 status_code = 1;
+    string message = 2;
+    uint64 events_count = 3;
+
+    // Semantic type for return value
+    string return_value = 4 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hex"
+    }];
+}
+
+message ErrorResult {
+    uint32 error_code = 1;
+    string error_message = 2;
+    string revert_reason = 3;
+
+    // Semantic type for transaction that caused error
+    string failed_tx_hash = 4 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hash"
+    }];
+}
+
+message RevertResult {
+    string revert_reason = 1;
+    bytes revert_data = 2;
+    uint64 gas_used_before_revert = 3;
+}
+
+enum TransactionType {
+    TRANSACTION_TYPE_UNSPECIFIED = 0;
+    TRANSACTION_TYPE_LEGACY = 1;
+    TRANSACTION_TYPE_EIP1559 = 2;
+    TRANSACTION_TYPE_EIP2930 = 3;
+}
+
+// ============================================================================
+// EDGE CASE: NO SEMANTIC TYPES IN SOME MESSAGES
+// ============================================================================
+
+message RegularMessage {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "regular_message"
+    };
+
+    // Only regular protobuf types, no semantic annotations
+    string id = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true
+    }];
+
+    uint64 timestamp = 2;
+    string name = 3;
+    bytes data = 4;
+    bool active = 5;
+    repeated string tags = 6;
+    double score = 7;
+}
+
+// ============================================================================
+// EDGE CASE: ONLY SEMANTIC TYPES
+// ============================================================================
+
+message OnlySemanticMessage {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "only_semantic_message"
+    };
+
+    // Every field has semantic type annotation
+    string record_id = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true,
+        semantic_type: "uuid"
+    }];
+
+    string wallet_address = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string transaction_hash = 3 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hash"
+    }];
+
+    string balance = 4 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    uint64 created_at = 5 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "unix_timestamp"
+    }];
+
+    string metadata = 6 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "json"
+    }];
+}
+
+// ============================================================================
+// REAL-WORLD SCENARIO: DeFi PROTOCOL
+// ============================================================================
+
+message DeFiOperation {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "defi_operations"
+    };
+
+    // Primary identifier - semantic type
+    string operation_id = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true,
+        semantic_type: "hash"
+    }];
+
+    // Blockchain context - mix of semantic and regular
+    string tx_hash = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hash",
+        foreign_key: "transactions on tx_hash"
+    }];
+
+    uint64 block_number = 3;  // Regular uint64
+    uint32 log_index = 4;     // Regular uint32
+
+    // Protocol addresses - semantic types
+    string protocol_address = 5 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string user_address = 6 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    // Token information - mixed approach
+    string token_address = 7 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string token_symbol = 8;    // Regular string
+    uint32 token_decimals = 9;  // Regular uint32
+
+    // Amounts - semantic types for precision
+    string amount_in = 10 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    string amount_out = 11 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    // Fee calculation - mixed
+    string fee_amount = 12 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    double fee_percentage = 13;  // Regular double
+
+    // Operation metadata - regular types
+    string operation_type = 14;
+    bool is_successful = 15;
+    uint32 gas_used = 16;
+
+    // Timing - semantic type
+    uint64 executed_at = 17 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "unix_timestamp"
+    }];
+
+    // Additional data - regular bytes
+    bytes additional_data = 18;
+}

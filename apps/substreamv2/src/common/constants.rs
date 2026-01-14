@@ -1,0 +1,3 @@
+pub const DEFAULT_FACTORY_ADDRESS: &str = "0x6c9258026a9272368e49bbb7d0a78c17bbe284bf";
+
+pub const DEFAULT_CHAIN_ID: u64 = 11155111;

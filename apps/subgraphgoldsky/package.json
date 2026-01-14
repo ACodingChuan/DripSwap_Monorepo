@@ -1,0 +1,30 @@
+{
+  "name": "v2",
+  "version": "1.0.5",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "url": "sushiswap/subgraphs",
+    "directory": "subgraphs/v2"
+  },
+  "files": [
+    "generated"
+  ],
+  "scripts": {
+    "generate": "mustache config/$NETWORK.json template.yaml > subgraph.yaml && mustache config/$NETWORK.json src/constants/index.template.ts > src/constants/index.ts && graph codegen",
+    "build": "graph build",
+    "test": "graph test -r",
+    "create-local": "graph create --node http://localhost:8020/ dripswap/v2-ethereum",
+    "remove-local": "graph remove --node http://localhost:8020/ dripswap/v2-ethereum",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 dripswap/v2-ethereum",
+    "deploy-goldsky": "goldsky subgraph deploy dripswap-v2-$NETWORK/$npm_package_version --path .",
+    "deploy-goldsky-sepolia": "NETWORK=sepolia npm run generate && npm run build && goldsky subgraph deploy dripswap-v2-sepolia/$npm_package_version --path .",
+    "deploy-goldsky-scroll": "NETWORK=scroll-sepolia npm run generate && npm run build && goldsky subgraph deploy dripswap-v2-scroll-sepolia/$npm_package_version --path ."
+  },
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "^0.98.1",
+    "@graphprotocol/graph-ts": "^0.38.2",
+    "assemblyscript": "^0.19.20",
+    "matchstick-as": "0.6.0",
+    "wabt": "1.0.24"
+  }
+}

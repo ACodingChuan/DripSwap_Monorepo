@@ -1,0 +1,18 @@
+{
+  "network": "scroll-sepolia",
+  "retainBlocks": "auto",
+  "v2": {
+    "factory": {
+      "address": "0x6c9258026a9272368e49bbb7d0a78c17bbe284bf",
+      "startBlock": "14731854",
+      "initCodeHash": "0x0d793e0bc737382e20c7a174911671209b6e833da3cb64b5c75e1940da1f1c21"
+    },
+    "nativeAddress": "0xe91d02e66a9152fee1bc79c1830121f6507a4f6d",
+    "whitelistAddresses": "0xe91d02e66a9152fee1bc79c1830121f6507a4f6d,0x46a906fca4487c87f0d89d2d0824ec57bdaa947d,0xbacdbe38df8421d0aa90262beb1c20d32a634fe7,0x0c156e2f45a812ad743760a88d73fb22879bc299,0xaea8c2f08b10fe1853300df4332e462b449e19d6,0x1a95d5d1930b807b62b20f3ca6b2451ffc75b454,0x4911fb3923f6da0cd4920f914991b0a742d88bfd",
+    "stable0": "0x46a906fca4487c87f0d89d2d0824ec57bdaa947d",
+    "stable1": "0xbacdbe38df8421d0aa90262beb1c20d32a634fe7",
+    "stable2": "0x0c156e2f45a812ad743760a88d73fb22879bc299",
+    "minimumNativeLiquidity": "0.001",
+    "oracleAddress": "0x59f1ec1f10bd7ed9b938431086bc1d9e233ecf41"
+  }
+}

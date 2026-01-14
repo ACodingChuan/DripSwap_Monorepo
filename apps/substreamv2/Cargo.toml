@@ -1,0 +1,20 @@
+[package]
+name = "substreams-uniswap-v2"
+version = "0.1.0"
+description = "DripSwap Uniswap V2 event substream"
+edition = "2021"
+repository = "https://github.com/ACodingChuan/DripSwap_Monorepo"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ethabi = "17.0"
+hex = "0.4.3"
+prost = "0.11.8"
+substreams = "0.5.0"
+substreams-ethereum = "0.8.0"
+
+[build-dependencies]
+anyhow = "1"
+substreams-common = { path = "../../substreams/common" }

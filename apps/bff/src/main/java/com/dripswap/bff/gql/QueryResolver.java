@@ -1,5 +1,6 @@
 package com.dripswap.bff.gql;
 
+import com.dripswap.bff.config.SubgraphProperties;
 import com.dripswap.bff.entity.BridgeTransfer;
 import com.dripswap.bff.entity.Burn;
 import com.dripswap.bff.entity.Bundle;
@@ -38,7 +39,9 @@ import com.dripswap.bff.repository.TokenRepository;
 import com.dripswap.bff.repository.TransactionRepository;
 import com.dripswap.bff.repository.UniswapDayDataRepository;
 import com.dripswap.bff.repository.UniswapFactoryRepository;
+import com.dripswap.bff.sync.SubgraphClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +54,7 @@ import org.springframework.stereotype.Controller;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -70,6 +74,8 @@ public class QueryResolver {
 
     private final ObjectMapper objectMapper;
     private final StringRedisTemplate redisTemplate;
+    private final SubgraphProperties subgraphProperties;
+    private final SubgraphClient subgraphClient;
     private final SwapRepository swapRepository;
     private final MintRepository mintRepository;
     private final BurnRepository burnRepository;
@@ -216,51 +222,151 @@ public class QueryResolver {
             }
         }
         
-        // 2. Redis miss - query DB
-        log.debug("Redis MISS: {} - querying DB", redisKey);
+        // 2. Redis miss - query Goldsky (subgraph) first, then fallback to DB
+        log.debug("Redis MISS: {} - querying subgraph", redisKey);
 
-        UniswapFactory factory = uniswapFactoryRepository
-                .findFirstByChainIdOrderByUpdatedAtDesc(normalizedChainId)
-                .orElse(null);
+        ExploreStatsPayload result = null;
+        try {
+            String endpoint = resolveSubgraphEndpoint(normalizedChainId);
+            if (endpoint != null && !endpoint.isBlank()) {
+                String query = """
+                    query ExploreStats($days: Int!) {
+                      factories: uniswapFactories(first: 1) {
+                        totalLiquidityUSD
+                      }
+                      latestDay: uniswapDayDatas(first: 1, orderBy: date, orderDirection: desc) {
+                        dailyVolumeUSD
+                      }
+                      series: uniswapDayDatas(first: $days, orderBy: date, orderDirection: desc) {
+                        date
+                        totalLiquidityUSD
+                        dailyVolumeUSD
+                      }
+                    }
+                    """;
 
-        BigDecimal tvlUsd = factory == null ? BigDecimal.ZERO : safeBigDecimal(factory.getTotalLiquidityUsd());
+                JsonNode data = subgraphClient.query(endpoint, query, Map.of("days", windowDays));
 
-        UniswapDayData latestDay = uniswapDayDataRepository
-                .findFirstByChainIdOrderByDateDesc(normalizedChainId)
-                .orElse(null);
+                BigDecimal tvlUsd = BigDecimal.ZERO;
+                JsonNode factories = data == null ? null : data.get("factories");
+                if (factories != null && factories.isArray() && !factories.isEmpty()) {
+                    tvlUsd = parseBigDecimalField(factories.get(0), "totalLiquidityUSD");
+                }
 
-        BigDecimal volume24hUsd = latestDay == null ? BigDecimal.ZERO : safeBigDecimal(latestDay.getDailyVolumeUsd());
-        BigDecimal fees24hUsd = volume24hUsd.multiply(new BigDecimal("0.003"));
+                BigDecimal volume24hUsd = BigDecimal.ZERO;
+                JsonNode latestDay = data == null ? null : data.get("latestDay");
+                if (latestDay != null && latestDay.isArray() && !latestDay.isEmpty()) {
+                    volume24hUsd = parseBigDecimalField(latestDay.get(0), "dailyVolumeUSD");
+                }
 
-        List<UniswapDayData> seriesRows = uniswapDayDataRepository.findByChainIdOrderByDateDesc(
-                normalizedChainId,
-                PageRequest.of(0, windowDays)
-        );
+                JsonNode series = data == null ? null : data.get("series");
+                List<ExploreSeriesPointPayload> tvlSeries = new ArrayList<>();
+                List<ExploreSeriesPointPayload> volumeSeries = new ArrayList<>();
+                if (series != null && series.isArray()) {
+                    for (JsonNode row : series) {
+                        Integer date = row.hasNonNull("date") ? row.get("date").asInt() : null;
+                        if (date == null) continue;
 
-        List<ExploreSeriesPointPayload> tvlSeries = seriesRows.stream()
-                .sorted(Comparator.comparingInt(UniswapDayData::getDate))
-                .map(row -> ExploreSeriesPointPayload.builder()
-                        .date(row.getDate())
-                        .valueUsd(safeBigDecimal(row.getTotalLiquidityUsd()))
-                        .build())
-                .toList();
+                        tvlSeries.add(ExploreSeriesPointPayload.builder()
+                                .date(date)
+                                .valueUsd(parseBigDecimalField(row, "totalLiquidityUSD"))
+                                .build());
+                        volumeSeries.add(ExploreSeriesPointPayload.builder()
+                                .date(date)
+                                .valueUsd(parseBigDecimalField(row, "dailyVolumeUSD"))
+                                .build());
+                    }
+                }
 
-        List<ExploreSeriesPointPayload> volumeSeries = seriesRows.stream()
-                .sorted(Comparator.comparingInt(UniswapDayData::getDate))
-                .map(row -> ExploreSeriesPointPayload.builder()
-                        .date(row.getDate())
-                        .valueUsd(safeBigDecimal(row.getDailyVolumeUsd()))
-                        .build())
-                .toList();
+                tvlSeries.sort(Comparator.comparingInt(ExploreSeriesPointPayload::getDate));
+                volumeSeries.sort(Comparator.comparingInt(ExploreSeriesPointPayload::getDate));
 
-        ExploreStatsPayload result = ExploreStatsPayload.builder()
-                .chainId(normalizedChainId)
-                .tvlUsd(tvlUsd)
-                .volume24hUsd(volume24hUsd)
-                .fees24hUsd(fees24hUsd)
-                .tvlSeries(tvlSeries)
-                .volumeSeries(volumeSeries)
-                .build();
+                if (tvlSeries.isEmpty() && tvlUsd.compareTo(BigDecimal.ZERO) > 0) {
+                    tvlSeries = synthesizeDailySeries(tvlUsd, tvlUsd);
+                }
+                if (volumeSeries.isEmpty() && volume24hUsd.compareTo(BigDecimal.ZERO) > 0) {
+                    volumeSeries = synthesizeDailySeries(volume24hUsd, BigDecimal.ZERO);
+                }
+
+                // Frontend requires >= 2 points to render charts; if data is too fresh, pad a previous day.
+                tvlSeries = padSeriesIfNeeded(tvlSeries, tvlUsd);
+                volumeSeries = padSeriesIfNeeded(volumeSeries, BigDecimal.ZERO);
+
+                if (volume24hUsd.compareTo(BigDecimal.ZERO) == 0 && !volumeSeries.isEmpty()) {
+                    volume24hUsd = safeBigDecimal(volumeSeries.get(volumeSeries.size() - 1).getValueUsd());
+                }
+                if (tvlUsd.compareTo(BigDecimal.ZERO) == 0 && !tvlSeries.isEmpty()) {
+                    tvlUsd = safeBigDecimal(tvlSeries.get(tvlSeries.size() - 1).getValueUsd());
+                }
+
+                BigDecimal fees24hUsd = volume24hUsd.multiply(new BigDecimal("0.003"));
+
+                result = ExploreStatsPayload.builder()
+                        .chainId(normalizedChainId)
+                        .tvlUsd(tvlUsd)
+                        .volume24hUsd(volume24hUsd)
+                        .fees24hUsd(fees24hUsd)
+                        .tvlSeries(tvlSeries)
+                        .volumeSeries(volumeSeries)
+                        .build();
+            }
+        } catch (Exception e) {
+            log.warn("Subgraph exploreStats failed, fallback to DB: chainId={}, days={}, err={}",
+                    normalizedChainId, windowDays, e.getMessage());
+        }
+
+        if (result == null) {
+            log.debug("Subgraph unavailable; querying DB for exploreStats: chainId={}", normalizedChainId);
+
+            UniswapFactory factory = uniswapFactoryRepository
+                    .findFirstByChainIdOrderByUpdatedAtDesc(normalizedChainId)
+                    .orElse(null);
+
+            BigDecimal tvlUsd = factory == null ? BigDecimal.ZERO : safeBigDecimal(factory.getTotalLiquidityUsd());
+
+            UniswapDayData latestDay = uniswapDayDataRepository
+                    .findFirstByChainIdOrderByDateDesc(normalizedChainId)
+                    .orElse(null);
+
+            BigDecimal volume24hUsd = latestDay == null ? BigDecimal.ZERO : safeBigDecimal(latestDay.getDailyVolumeUsd());
+            BigDecimal fees24hUsd = volume24hUsd.multiply(new BigDecimal("0.003"));
+
+            List<UniswapDayData> seriesRows = uniswapDayDataRepository.findByChainIdOrderByDateDesc(
+                    normalizedChainId,
+                    PageRequest.of(0, windowDays)
+            );
+
+            List<ExploreSeriesPointPayload> tvlSeries = seriesRows.stream()
+                    .sorted(Comparator.comparingInt(UniswapDayData::getDate))
+                    .map(row -> ExploreSeriesPointPayload.builder()
+                            .date(row.getDate())
+                            .valueUsd(safeBigDecimal(row.getTotalLiquidityUsd()))
+                            .build())
+                    .toList();
+
+            List<ExploreSeriesPointPayload> volumeSeries = seriesRows.stream()
+                    .sorted(Comparator.comparingInt(UniswapDayData::getDate))
+                    .map(row -> ExploreSeriesPointPayload.builder()
+                            .date(row.getDate())
+                            .valueUsd(safeBigDecimal(row.getDailyVolumeUsd()))
+                            .build())
+                    .toList();
+
+            result = ExploreStatsPayload.builder()
+                    .chainId(normalizedChainId)
+                    .tvlUsd(tvlUsd)
+                    .volume24hUsd(volume24hUsd)
+                    .fees24hUsd(fees24hUsd)
+                    .tvlSeries(padSeriesIfNeeded(
+                            tvlSeries.isEmpty() && tvlUsd.compareTo(BigDecimal.ZERO) > 0 ? synthesizeDailySeries(tvlUsd, tvlUsd) : tvlSeries,
+                            tvlUsd
+                    ))
+                    .volumeSeries(padSeriesIfNeeded(
+                            volumeSeries.isEmpty() && volume24hUsd.compareTo(BigDecimal.ZERO) > 0 ? synthesizeDailySeries(volume24hUsd, BigDecimal.ZERO) : volumeSeries,
+                            BigDecimal.ZERO
+                    ))
+                    .build();
+        }
         
         // 3. Write back to Redis with TTL
         try {
@@ -830,6 +936,70 @@ public class QueryResolver {
 
     private BigDecimal safeBigDecimal(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    private String resolveSubgraphEndpoint(String normalizedChainId) {
+        if (subgraphProperties == null || subgraphProperties.getChains() == null) return null;
+        for (SubgraphProperties.ChainConfig chain : subgraphProperties.getChains()) {
+            if (chain == null) continue;
+            if (!Objects.equals(chain.getId(), normalizedChainId)) continue;
+            if (!chain.isEnabled()) continue;
+            return chain.getEndpointV2();
+        }
+        return null;
+    }
+
+    private BigDecimal parseBigDecimalField(JsonNode node, String fieldName) {
+        if (node == null || fieldName == null) return BigDecimal.ZERO;
+        JsonNode v = node.get(fieldName);
+        if (v == null || v.isNull()) return BigDecimal.ZERO;
+        try {
+            if (v.isNumber()) return v.decimalValue();
+            String text = v.asText(null);
+            if (text == null || text.isBlank()) return BigDecimal.ZERO;
+            return new BigDecimal(text);
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
+        }
+    }
+
+    private List<ExploreSeriesPointPayload> padSeriesIfNeeded(
+            List<ExploreSeriesPointPayload> series,
+            BigDecimal fallbackValueUsd
+    ) {
+        if (series == null || series.isEmpty()) return List.of();
+        if (series.size() >= 2) return series;
+
+        ExploreSeriesPointPayload only = series.get(0);
+        int prevDate = only.getDate() - 86_400;
+        BigDecimal valueUsd = safeBigDecimal(fallbackValueUsd);
+        if (valueUsd.compareTo(BigDecimal.ZERO) == 0) {
+            valueUsd = safeBigDecimal(only.getValueUsd());
+        }
+
+        List<ExploreSeriesPointPayload> padded = new ArrayList<>(2);
+        padded.add(ExploreSeriesPointPayload.builder()
+                .date(prevDate)
+                .valueUsd(valueUsd)
+                .build());
+        padded.add(only);
+        return padded;
+    }
+
+    private List<ExploreSeriesPointPayload> synthesizeDailySeries(BigDecimal currentValueUsd, BigDecimal previousValueUsd) {
+        long now = Instant.now().getEpochSecond();
+        int todayStart = (int) (now - (now % 86_400));
+        int yesterdayStart = todayStart - 86_400;
+        return List.of(
+                ExploreSeriesPointPayload.builder()
+                        .date(yesterdayStart)
+                        .valueUsd(safeBigDecimal(previousValueUsd))
+                        .build(),
+                ExploreSeriesPointPayload.builder()
+                        .date(todayStart)
+                        .valueUsd(safeBigDecimal(currentValueUsd))
+                        .build()
+        );
     }
 
     private Map<String, Object> buildSwapData(Swap swap) {

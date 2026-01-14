@@ -1,0 +1,5 @@
+topic_prefix: dripswap
+default_topic: uniswap_events
+topics: {}
+fanout_strategy:
+  type: SingleTopic

@@ -1,0 +1,12 @@
+default_topic: fallback
+fanout_strategy:
+  field_path: instructions[0]
+  oneof_field: Item
+  type: OneofField
+topic_prefix: spl
+topics:
+  burn: burns
+  initialize_mint: initialize_mints
+  initialized_account: initialized_accounts
+  mint: mints
+  transfer: transfers

@@ -1,0 +1,199 @@
+{
+  "proto_file": "proto/sf/solana/v1/spl/type/spl.proto",
+  "analyzed_at": "2025-09-22T01:10:58.767086",
+  "analyzer_version": "2.0.0",
+  "routing_strategies": [
+    {
+      "type": "OneofField",
+      "description": "Route based on oneof field variants within repeated message fields",
+      "recommended": true,
+      "complexity": "medium"
+    },
+    {
+      "type": "MessageType",
+      "description": "Route based on different protobuf message types",
+      "recommended": true,
+      "complexity": "low"
+    },
+    {
+      "type": "SingleTopic",
+      "description": "Route all messages to a single topic (simplest approach)",
+      "recommended": false,
+      "complexity": "minimal"
+    }
+  ],
+  "field_patterns": {
+    "extraction_patterns": {
+      "generic": {
+        "instruction_id": "fields->>'instruction_id'",
+        "transaction_hash": "fields->>'transaction_hash'",
+        "block_number": "block_number"
+      },
+      "dynamic": {
+        "description": "Field extraction patterns will be generated based on actual message analysis",
+        "pattern": "fields->'{{message_type}}'->>'{{field_name}}' as {{field_alias}}"
+      }
+    },
+    "semantic_analysis": {
+      "SplInstructions.instructions": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Instruction.instruction_id": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Instruction.transaction_hash": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Instruction.initialize_mint": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Instruction.mint": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Instruction.burn": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Instruction.transfer": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Instruction.initialized_account": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "InitializeMint.mint_address": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "InitializeMint.decimals": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "InitializeMint.mint_authority": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "InitializeMint.freeze_authority": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transfer.from": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transfer.to": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transfer.amount": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Mint.mint_address": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Mint.to": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Mint.amount": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Burn.mint_address": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Burn.from": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Burn.amount": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "InitializedAccount.account": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "InitializedAccount.mint_address": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "InitializedAccount.owner": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      }
+    }
+  },
+  "recommendations": {
+    "preferred_strategy": "OneofField",
+    "reasoning": "Most flexible for complex protobuf structures with variant types",
+    "topic_prefix_suggestion": "spl",
+    "next_steps": [
+      "Generate fanout configuration using recommended strategy",
+      "Test with sample data to validate routing"
+    ]
+  },
+  "schema_info": {
+    "proto_file": "proto/sf/solana/v1/spl/type/spl.proto",
+    "compiled_schema_path": "/app/schemas/schema.pb",
+    "host_schema_path": "schemas/schema.pb",
+    "primary_message_type": "SplInstructions"
+  }
+}

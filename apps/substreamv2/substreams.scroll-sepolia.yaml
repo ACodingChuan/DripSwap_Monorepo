@@ -1,0 +1,53 @@
+specVersion: v0.1.0
+package:
+  name: dripswap_uniswap_v2_events
+  version: v0.1.0
+  url: https://github.com/ACodingChuan/DripSwap_Monorepo
+  description: DripSwap Uniswap V2 raw event substream (protobuf only).
+  doc: README.md
+
+imports:
+  eth: https://github.com/streamingfast/sf-ethereum/releases/download/v0.10.2/ethereum-v0.10.4.spkg
+
+binaries:
+  default:
+    type: wasm/rust-v1
+    file: "./target/wasm32-unknown-unknown/release/substreams_uniswap_v2.wasm"
+
+protobuf:
+  files:
+    - uniswap.proto
+  importPaths:
+    - ./proto/v1
+  excludePaths:
+    - sf/substreams
+    - google
+
+modules:
+  - name: map_pair_created
+    kind: map
+    initialBlock: 14731854
+    inputs:
+      - params: string
+      - source: sf.ethereum.type.v2.Block
+    output:
+      type: proto:messari.uniswap.v2.Pairs
+
+  - name: store_pairs
+    kind: store
+    updatePolicy: set_if_not_exists
+    valueType: proto:messari.uniswap.v2.Pair
+    inputs:
+      - params: string
+      - map: map_pair_created
+
+  - name: map_uniswap_events
+    kind: map
+    initialBlock: 14731854
+    inputs:
+      - params: string
+      - source: sf.ethereum.type.v2.Block
+      - store: store_pairs
+    output:
+      type: proto:messari.uniswap.v2.Events
+network: scroll-sepolia

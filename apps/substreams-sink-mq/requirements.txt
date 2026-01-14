@@ -1,0 +1,11 @@
+# Production requirements for Python pipeline components
+# Core Python dependencies for protobuf-first pipeline
+
+# YAML processing for fanout configs
+PyYAML>=6.0.0
+
+# NATS JetStream client for stream management
+nats-py>=2.8.0
+
+# Kafka admin client for topic management
+kafka-python>=2.0.2

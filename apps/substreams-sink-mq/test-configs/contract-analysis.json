@@ -1,0 +1,2019 @@
+{
+  "proto_file": "proto/contract.proto",
+  "analyzed_at": "2025-09-22T18:50:18.084226",
+  "analyzer_version": "2.0.0",
+  "routing_strategies": [
+    {
+      "type": "RepeatedFields",
+      "description": "Route based on populated repeated fields in Events message",
+      "recommended": true,
+      "complexity": "medium",
+      "details": {
+        "message_type": "Events",
+        "repeated_fields": [
+          "trove_operations",
+          "trove_updates",
+          "batch_operations",
+          "active_pool_updates",
+          "stability_pool_operations",
+          "default_pool_updates",
+          "coll_surplus_operations",
+          "liquidation_events",
+          "redemption_events",
+          "redemption_fee_payments",
+          "trove_nft_operations",
+          "branch_config_changes",
+          "manager_operations",
+          "oracle_events",
+          "protocol_config_changes",
+          "collateral_registry_updates",
+          "token_transfers",
+          "token_approvals",
+          "collateral_token_operations",
+          "governance_operations",
+          "lqty_staking_operations",
+          "ownership_transfers",
+          "transactions"
+        ]
+      }
+    },
+    {
+      "type": "SingleTopic",
+      "description": "Route all messages to a single topic (simplest approach)",
+      "recommended": false,
+      "complexity": "minimal"
+    }
+  ],
+  "field_patterns": {
+    "extraction_patterns": {
+      "generic": {
+        "instruction_id": "fields->>'instruction_id'",
+        "transaction_hash": "fields->>'transaction_hash'",
+        "block_number": "block_number"
+      },
+      "dynamic": {
+        "description": "Field extraction patterns will be generated based on actual message analysis",
+        "pattern": "fields->'{{message_type}}'->>'{{field_name}}' as {{field_alias}}"
+      }
+    },
+    "semantic_analysis": {
+      "TroveOperation.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "TroveOperation.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.trove_id": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.operation_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.annual_interest_rate": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.debt_increase_from_redist": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.debt_increase_from_upfront_fee": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.debt_change_from_operation": {
+        "semantic_type": "int256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.coll_increase_from_redist": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveOperation.coll_change_from_operation": {
+        "semantic_type": "int256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "TroveUpdate.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.trove_id": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.debt": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.coll": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.stake": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.annual_interest_rate": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.snapshot_of_total_coll_redist": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveUpdate.snapshot_of_total_debt_redist": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchOperation.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "BatchOperation.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchOperation.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchOperation.batch_update": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchOperation.trove_update": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchOperation.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchUpdate.batch_manager": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchUpdate.debt": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchUpdate.coll": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchUpdate.annual_interest_rate": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchUpdate.annual_management_fee": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchUpdate.operation": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchUpdate.total_debt_shares": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchUpdate.debt_increase_from_upfront_fee": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchedTroveUpdate.trove_id": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchedTroveUpdate.batch_manager": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchedTroveUpdate.debt": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchedTroveUpdate.coll": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchedTroveUpdate.stake": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchedTroveUpdate.annual_interest_rate": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchedTroveUpdate.snapshot_of_total_coll_redist": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BatchedTroveUpdate.snapshot_of_total_debt_redist": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StabilityPoolOperation.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "StabilityPoolOperation.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StabilityPoolOperation.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StabilityPoolOperation.deposit": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StabilityPoolOperation.pool_update": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StabilityPoolOperation.balance_update": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StabilityPoolOperation.deposit_update": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StabilityPoolOperation.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositOperation.depositor": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositOperation.operation": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositOperation.deposit_loss_since_last_operation": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositOperation.top_up_or_withdrawal": {
+        "semantic_type": "int256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositOperation.yield_gain_since_last_operation": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositOperation.yield_gain_claimed": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositOperation.eth_gain_since_last_operation": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositOperation.eth_gain_claimed": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "SValueUpdate.s_value": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "SValueUpdate.scale": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BValueUpdate.b_value": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BValueUpdate.scale": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositUpdate.depositor": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositUpdate.deposit_amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositUpdate.stashed_coll": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositUpdate.snapshot_p": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositUpdate.snapshot_s": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositUpdate.snapshot_b": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositUpdate.snapshot_scale": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollSurplusOperation.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "CollSurplusOperation.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollSurplusOperation.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollSurplusOperation.balance_update": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollSurplusOperation.coll_sent": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollSurplusOperation.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollBalanceUpdate.account": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollBalanceUpdate.new_balance": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollSent.to_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollSent.amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "LiquidationEvent.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.liquidator": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.liquidated_debt": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.liquidated_coll": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.gas_compensation": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.debt_redistributed": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.coll_gas_compensation": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.coll_redistributed": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.coll_surplus": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.l_eth": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.l_bold_debt": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.price": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LiquidationEvent.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "RedemptionEvent.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.redeemer": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.attempted_bold_amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.actual_bold_amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.coll_sent": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.coll_fee": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.price": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.redemption_price": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionEvent.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionFeePayment.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "RedemptionFeePayment.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionFeePayment.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionFeePayment.trove_id": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionFeePayment.fee_amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RedemptionFeePayment.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveNFTOperation.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "TroveNFTOperation.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveNFTOperation.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveNFTOperation.transfer": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveNFTOperation.approval": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveNFTOperation.approval_for_all": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TroveNFTOperation.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "NFTTransfer.from_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "NFTTransfer.to_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "NFTTransfer.token_id": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "NFTApproval.owner": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "NFTApproval.approved": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "NFTApproval.token_id": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "NFTApprovalForAll.owner": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "NFTApprovalForAll.operator": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "NFTApprovalForAll.approved": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ProtocolConfigChange.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "ProtocolConfigChange.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ProtocolConfigChange.contract_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ProtocolConfigChange.change_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ProtocolConfigChange.old_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ProtocolConfigChange.new_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ProtocolConfigChange.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BranchConfigChange.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "BranchConfigChange.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BranchConfigChange.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BranchConfigChange.contract_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BranchConfigChange.change_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BranchConfigChange.old_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BranchConfigChange.new_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BranchConfigChange.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "ManagerOperation.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.contract_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.operation_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.trove_id": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.manager_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.receiver_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.is_manager": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.is_remove_manager": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.is_receiver": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ManagerOperation.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OracleEvent.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "OracleEvent.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OracleEvent.branch": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OracleEvent.emergency_shutdown": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OracleEvent.oracle_failure": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OracleEvent.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "EmergencyShutdown.tcr": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OracleFailureShutdown.failed_oracle_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralRegistryUpdate.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "CollateralRegistryUpdate.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralRegistryUpdate.base_rate": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralRegistryUpdate.fee_op_time": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralRegistryUpdate.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "BaseRateUpdate.base_rate": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LastFeeOpTimeUpdate.last_fee_op_time": {
+        "semantic_type": "unix_timestamp",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenTransfer.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "TokenTransfer.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenTransfer.token_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenTransfer.token_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenTransfer.from_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenTransfer.to_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenTransfer.amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenTransfer.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenApproval.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "TokenApproval.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenApproval.token_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenApproval.token_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenApproval.owner_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenApproval.spender_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenApproval.amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokenApproval.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralTokenOperation.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "CollateralTokenOperation.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralTokenOperation.token_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralTokenOperation.ether_deposited": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralTokenOperation.tokens_minted": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralTokenOperation.tokens_burned": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "CollateralTokenOperation.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "EtherDeposited.account": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "EtherDeposited.amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "EtherDeposited.time": {
+        "semantic_type": "unix_timestamp",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokensMinted.account": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokensMinted.amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokensMinted.eth_amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokensMinted.time": {
+        "semantic_type": "unix_timestamp",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokensBurned.account": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokensBurned.amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokensBurned.eth_amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TokensBurned.time": {
+        "semantic_type": "unix_timestamp",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "GovernanceOperation.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.allocate": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.deposit": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.withdraw": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.claim": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.deploy_proxy": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.register": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.unregister": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.snapshot": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.snapshot_initiative": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "GovernanceOperation.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "AllocateLQTY.user": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "AllocateLQTY.initiative": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "AllocateLQTY.delta_vote_lqty": {
+        "semantic_type": "int256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "AllocateLQTY.delta_veto_lqty": {
+        "semantic_type": "int256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "AllocateLQTY.at_epoch": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "AllocateLQTY.hook_status": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositLQTY.user": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositLQTY.reward_recipient": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositLQTY.lqty_amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositLQTY.lusd_received": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositLQTY.lusd_sent": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositLQTY.eth_received": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DepositLQTY.eth_sent": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "WithdrawLQTY.user": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "WithdrawLQTY.recipient": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "WithdrawLQTY.lqty_received": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "WithdrawLQTY.lqty_sent": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "WithdrawLQTY.lusd_received": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "WithdrawLQTY.lusd_sent": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "WithdrawLQTY.eth_received": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "WithdrawLQTY.eth_sent": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ClaimForInitiative.initiative": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ClaimForInitiative.bold_amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ClaimForInitiative.for_epoch": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "ClaimForInitiative.hook_status": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DeployUserProxy.user": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "DeployUserProxy.user_proxy": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RegisterInitiative.initiative": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RegisterInitiative.registrant": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RegisterInitiative.at_epoch": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "RegisterInitiative.hook_status": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "UnregisterInitiative.initiative": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "UnregisterInitiative.at_epoch": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "UnregisterInitiative.hook_status": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "SnapshotVotes.votes": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "SnapshotVotes.for_epoch": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "SnapshotVotes.bold_accrued": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "SnapshotVotesForInitiative.initiative": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "SnapshotVotesForInitiative.votes": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "SnapshotVotesForInitiative.vetos": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "SnapshotVotesForInitiative.for_epoch": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.stake_change": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.gains_withdrawn": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.snapshots_updated": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.total_staked": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.f_eth": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.f_lusd": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.ether_sent": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "LQTYStakingOperation.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StakeChanged.staker": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StakeChanged.new_stake": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StakingGainsWithdrawn.staker": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StakingGainsWithdrawn.lusd_gain": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StakingGainsWithdrawn.eth_gain": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StakerSnapshotsUpdated.staker": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StakerSnapshotsUpdated.f_eth": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "StakerSnapshotsUpdated.f_lusd": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "TotalLQTYStakedUpdated.total_lqty_staked": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "FEthUpdated.f_eth": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "FLusdUpdated.f_lusd": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "EtherSent.to_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "EtherSent.amount": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OwnershipTransferred.tx_hash": {
+        "semantic_type": "hash",
+        "primary_key": false,
+        "foreign_key": "transactions on id",
+        "format_hint": ""
+      },
+      "OwnershipTransferred.event_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OwnershipTransferred.contract_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OwnershipTransferred.previous_owner": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OwnershipTransferred.new_owner": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "OwnershipTransferred.id": {
+        "semantic_type": "",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.id": {
+        "semantic_type": "hash",
+        "primary_key": true,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.tx_index": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.from_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.to_address": {
+        "semantic_type": "address",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.value": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.gas_price": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.gas_limit": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.gas_used": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.max_fee_per_gas": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.max_priority_fee_per_gas": {
+        "semantic_type": "uint256",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.nonce": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.status": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Transaction.tx_type": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.trove_operations": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.trove_updates": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.batch_operations": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.active_pool_updates": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.stability_pool_operations": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.default_pool_updates": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.coll_surplus_operations": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.liquidation_events": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.redemption_events": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.redemption_fee_payments": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.trove_nft_operations": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.branch_config_changes": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.manager_operations": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.oracle_events": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.protocol_config_changes": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.collateral_registry_updates": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.token_transfers": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.token_approvals": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.collateral_token_operations": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.governance_operations": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.lqty_staking_operations": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.ownership_transfers": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      },
+      "Events.transactions": {
+        "semantic_type": "",
+        "primary_key": false,
+        "foreign_key": "",
+        "format_hint": ""
+      }
+    }
+  },
+  "recommendations": {
+    "preferred_strategy": "RepeatedFields",
+    "reasoning": "Multiple repeated fields detected in Events message - route by populated fields",
+    "topic_prefix_suggestion": "contract",
+    "next_steps": [
+      "Generate fanout configuration using recommended strategy",
+      "Test with sample data to validate routing"
+    ]
+  },
+  "schema_info": {
+    "proto_file": "proto/contract.proto",
+    "primary_message_type": "Events"
+  }
+}

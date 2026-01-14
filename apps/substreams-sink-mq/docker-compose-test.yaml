@@ -1,0 +1,118 @@
+# Minimal Testing Environment for Integration Tests
+# Contains only NATS JetStream and Redpanda for running Python integration tests
+
+# No persistent volumes - use tmpfs for clean test runs
+
+services:
+  # =============================================================================
+  # NATS JETSTREAM MESSAGE QUEUE
+  # =============================================================================
+  nats-server:
+    image: nats:2.10.5-alpine
+    container_name: nats-server
+    command:
+      - "--jetstream"
+      - "--store_dir=/data"
+      - "--http_port=8222"
+      - "-D"  # Debug mode for development
+    ports:
+      - "4222:4222"   # NATS protocol
+      - "8222:8222"   # HTTP monitoring
+    tmpfs:
+      - /data  # In-memory storage for clean test runs
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    profiles:
+      - "test"
+      - "nats"
+      - "all"
+
+  # =============================================================================
+  # REDPANDA MESSAGE QUEUE (Kafka-compatible)
+  # =============================================================================
+  redpanda-0:
+    image: docker.redpanda.com/redpandadata/redpanda:v25.2.1
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda-0:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://redpanda-0:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr redpanda-0:33145
+      - --advertise-rpc-addr redpanda-0:33145
+      # Single node mode for testing
+      - --mode dev-container
+      - --smp 2
+      - --memory 2G
+      - --default-log-level=info
+      # Dev mode already optimized for speed
+    container_name: redpanda-0
+    ports:
+      - 18081:18081  # Schema Registry
+      - 18082:18082  # HTTP Proxy
+      - 19092:19092  # Kafka API (external)
+      - 19644:9644   # Admin API
+    tmpfs:
+      - /var/lib/redpanda/data:noexec,nosuid,size=1g,uid=101,gid=101  # In-memory storage with correct permissions
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 3G
+        reservations:
+          memory: 1G
+    profiles:
+      - "test"
+      - "kafka"
+      - "redpanda"
+      - "all"
+
+  # =============================================================================
+  # REDPANDA CONSOLE (Optional - for debugging)
+  # =============================================================================
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:v2.4.6
+    container_name: redpanda-console
+    environment:
+      KAFKA_BROKERS: redpanda-0:9092
+      KAFKA_SCHEMAREGISTRY_ENABLED: true
+      KAFKA_SCHEMAREGISTRY_URLS: http://redpanda-0:8081
+    ports:
+      - "8080:8080"
+    depends_on:
+      redpanda-0:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - "console"
+      - "debug"
+
+  # =============================================================================
+  # NATS management tools (Optional - for debugging)
+  # =============================================================================
+  nats-box:
+    image: natsio/nats-box:latest
+    container_name: nats-box
+    depends_on:
+      nats-server:
+        condition: service_healthy
+    profiles:
+      - "nats-tools"
+      - "debug"

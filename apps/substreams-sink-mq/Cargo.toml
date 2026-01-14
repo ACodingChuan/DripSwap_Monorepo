@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "substreams-core",
+    "substreams-kafka-sink",
+    "substreams-nats-sink",
+]
+
+# Workspace-level profile configuration
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,53 @@
+default_topic: fallback
+fanout_strategy:
+  message_type: Events
+  repeated_fields:
+  - trove_operations
+  - trove_updates
+  - batch_operations
+  - active_pool_updates
+  - stability_pool_operations
+  - default_pool_updates
+  - coll_surplus_operations
+  - liquidation_events
+  - redemption_events
+  - redemption_fee_payments
+  - trove_nft_operations
+  - branch_config_changes
+  - manager_operations
+  - oracle_events
+  - protocol_config_changes
+  - collateral_registry_updates
+  - token_transfers
+  - token_approvals
+  - collateral_token_operations
+  - governance_operations
+  - lqty_staking_operations
+  - ownership_transfers
+  - transactions
+  type: RepeatedFields
+topic_prefix: contract
+topics:
+  active_pool_updates: active_pool_updates
+  batch_operations: batch_operations
+  branch_config_changes: branch_config_changes
+  coll_surplus_operations: coll_surplus_operations
+  collateral_registry_updates: collateral_registry_updates
+  collateral_token_operations: collateral_token_operations
+  default_pool_updates: default_pool_updates
+  governance_operations: governance_operations
+  liquidation_events: liquidation_events
+  lqty_staking_operations: lqty_staking_operations
+  manager_operations: manager_operations
+  oracle_events: oracle_events
+  ownership_transfers: ownership_transfers
+  protocol_config_changes: protocol_config_changes
+  redemption_events: redemption_events
+  redemption_fee_payments: redemption_fee_payments
+  stability_pool_operations: stability_pool_operations
+  token_approvals: token_approvals
+  token_transfers: token_transfers
+  transactions: transactions
+  trove_nft_operations: trove_nft_operations
+  trove_operations: trove_operations
+  trove_updates: trove_updates

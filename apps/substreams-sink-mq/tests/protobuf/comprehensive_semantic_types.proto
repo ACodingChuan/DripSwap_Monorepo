@@ -1,0 +1,332 @@
+syntax = "proto3";
+
+import "sf/substreams/sink/sql/schema/v1/schema.proto";
+
+package test.semantic_types.v1;
+
+// ============================================================================
+// COMPREHENSIVE SEMANTIC TYPES TEST PROTOBUF
+// ============================================================================
+// This file tests ALL semantic types defined in docs/SEMANTIC_TYPES.md
+// to ensure our semantic type parser handles every possible annotation
+
+message ComprehensiveSemanticTest {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "comprehensive_semantic_test"
+    };
+
+    // ========================================================================
+    // BLOCKCHAIN/CRYPTO TYPES
+    // ========================================================================
+
+    // uint256 - Native 256-bit unsigned arithmetic
+    string large_amount = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    string balance_wei = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "hex"
+    }];
+
+    // int256 - Native 256-bit signed arithmetic
+    string signed_delta = 3 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "int256",
+        format_hint: "decimal"
+    }];
+
+    string price_change = 4 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "int256",
+        format_hint: "hex"
+    }];
+
+    // address - Blockchain address (42 chars)
+    string from_address = 5 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string to_address = 6 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string contract_address = 7 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    // hash - Cryptographic hash (66 chars)
+    string tx_hash = 8 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true,
+        semantic_type: "hash"
+    }];
+
+    string block_hash = 9 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hash"
+    }];
+
+    string merkle_root = 10 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hash"
+    }];
+
+    // signature - Cryptographic signature
+    string ecdsa_signature = 11 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "signature"
+    }];
+
+    string schnorr_signature = 12 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "signature"
+    }];
+
+    // pubkey - Public key
+    string public_key = 13 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "pubkey"
+    }];
+
+    string validator_key = 14 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "pubkey"
+    }];
+
+    // ========================================================================
+    // TEXT/BINARY TYPES
+    // ========================================================================
+
+    // hex - Hexadecimal string
+    string hex_data = 15 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hex",
+        format_hint: "hex"
+    }];
+
+    string raw_bytes = 16 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hex"
+    }];
+
+    // base64 - Base64 encoded data
+    string encoded_payload = 17 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "base64",
+        format_hint: "base64"
+    }];
+
+    string binary_data = 18 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "base64"
+    }];
+
+    // json - JSON structured data
+    string metadata = 19 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "json"
+    }];
+
+    string attributes = 20 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "json"
+    }];
+
+    // uuid - UUID identifier
+    string trace_id = 21 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uuid"
+    }];
+
+    string session_id = 22 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uuid",
+        unique: true
+    }];
+
+    // ========================================================================
+    // TIME TYPES
+    // ========================================================================
+
+    // unix_timestamp - Unix timestamp (seconds)
+    uint64 created_at = 23 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "unix_timestamp"
+    }];
+
+    uint64 executed_at = 24 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "unix_timestamp"
+    }];
+
+    // unix_timestamp_ms - Unix timestamp (milliseconds)
+    uint64 precise_time = 25 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "unix_timestamp_ms"
+    }];
+
+    uint64 latency_start = 26 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "unix_timestamp_ms"
+    }];
+
+    // block_timestamp - Blockchain timestamp
+    uint64 block_time = 27 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "block_timestamp"
+    }];
+
+    // ========================================================================
+    // CONSTRAINT COMBINATIONS
+    // ========================================================================
+
+    // Primary key + semantic type
+    string record_id = 28 [(sf.substreams.sink.sql.schema.v1.field) = {
+        name: "id",
+        primary_key: true,
+        semantic_type: "uuid"
+    }];
+
+    // Foreign key + semantic type
+    string parent_tx = 29 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hash",
+        foreign_key: "transactions on tx_hash"
+    }];
+
+    // Unique + semantic type
+    string unique_address = 30 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address",
+        unique: true
+    }];
+
+    // Custom name + semantic type
+    string renamed_field = 31 [(sf.substreams.sink.sql.schema.v1.field) = {
+        name: "custom_column_name",
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    // All annotations combined
+    string complex_field = 32 [(sf.substreams.sink.sql.schema.v1.field) = {
+        name: "complex_semantic_field",
+        semantic_type: "hash",
+        format_hint: "hex",
+        unique: true,
+        foreign_key: "blocks on block_hash"
+    }];
+}
+
+// ============================================================================
+// CHILD TABLE WITH SEMANTIC TYPES
+// ============================================================================
+
+message SemanticChildTable {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "semantic_child_table",
+        child_of: "comprehensive_semantic_test on id"
+    };
+
+    string child_id = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true,
+        semantic_type: "uuid"
+    }];
+
+    string parent_hash = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hash",
+        foreign_key: "comprehensive_semantic_test on tx_hash"
+    }];
+
+    string child_amount = 3 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+}
+
+// ============================================================================
+// ONEOF WITH SEMANTIC TYPES (for fanout routing)
+// ============================================================================
+
+message SemanticOneofTest {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "semantic_oneof_test"
+    };
+
+    string operation_id = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true,
+        semantic_type: "uuid"
+    }];
+
+    string tx_hash = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "hash",
+        foreign_key: "transactions on tx_hash"
+    }];
+
+    oneof operation_type {
+        TransferOperation transfer = 10;
+        MintOperation mint = 11;
+        BurnOperation burn = 12;
+        SwapOperation swap = 13;
+    }
+}
+
+message TransferOperation {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "transfer_operations",
+        child_of: "semantic_oneof_test on operation_id"
+    };
+
+    string from_address = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string to_address = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string amount = 3 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+}
+
+message MintOperation {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "mint_operations",
+        child_of: "semantic_oneof_test on operation_id"
+    };
+
+    string to_address = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string amount = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+}
+
+message BurnOperation {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "burn_operations",
+        child_of: "semantic_oneof_test on operation_id"
+    };
+
+    string from_address = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string amount = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+}
+
+message SwapOperation {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "swap_operations",
+        child_of: "semantic_oneof_test on operation_id"
+    };
+
+    string token_in = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string token_out = 2 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "address"
+    }];
+
+    string amount_in = 3 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    string amount_out = 4 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "uint256",
+        format_hint: "decimal"
+    }];
+
+    string price_impact = 5 [(sf.substreams.sink.sql.schema.v1.field) = {
+        semantic_type: "int256",
+        format_hint: "decimal"
+    }];
+}

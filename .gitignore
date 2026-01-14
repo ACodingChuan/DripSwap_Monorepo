@@ -41,6 +41,15 @@ apps/substream/*.spkg
 apps/substream/*.log
 apps/substream/*.tmp
 
+# Substreams v2 / Rust
+apps/substreamv2/target/
+apps/substreamv2/*.spkg
+apps/substreamv2/*.log
+apps/substreamv2/*.tmp
+
+# Ponder / logs
+apps/ponder/**/*.log
+
 # Misc
 .DS_Store
 .env
@@ -54,3 +63,14 @@ interface
 # Embedded repos
 /substreams/
 /substreams-uniswap-v3/
+subgraphs/
+sushiswap/
+
+# Subgraph (Goldsky) artifacts
+apps/subgraphgoldsky/**/build/
+apps/subgraphgoldsky/**/generated/
+apps/subgraphgoldsky/**/node_modules/
+apps/subgraphgoldsky/**/.cache/
+
+# substreams-sink-mq build artifacts
+apps/substreams-sink-mq/**/target/

@@ -1,0 +1,9 @@
+default_topic: fallback
+fanout_strategy:
+  field_path: transaction_type
+  oneof_field: transaction_type
+  type: OneofField
+topic_prefix: simple_test
+topics:
+  mint: mints
+  transfer: transfers

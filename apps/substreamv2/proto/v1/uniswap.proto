@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package messari.uniswap.v2;
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  PAIR_CREATED = 1;
+  TRANSFER = 2;
+  MINT = 3;
+  BURN = 4;
+  SWAP = 5;
+  SYNC = 6;
+}
+
+message Pair {
+  string pair_address = 1;
+  string token0 = 2;
+  string token1 = 3;
+  uint64 log_ordinal = 4;
+}
+
+message Pairs {
+  repeated Pair pairs = 1;
+}
+
+message Events {
+  repeated Event events = 1;
+}
+
+message Event {
+  string event_id = 1;
+  uint64 chain_id = 2;
+  EventType event_type = 3;
+  string block_hash = 4;
+  uint64 block_number = 5;
+  uint64 block_timestamp = 6;
+  string tx_hash = 7;
+  uint32 tx_index = 8;
+  uint32 log_index = 9;
+  uint64 log_ordinal = 10;
+  string address = 11;
+  string pair_address = 12;
+
+  oneof payload {
+    PairCreated pair_created = 20;
+    Transfer transfer = 21;
+    Mint mint = 22;
+    Burn burn = 23;
+    Swap swap = 24;
+    Sync sync = 25;
+  }
+}
+
+message PairCreated {
+  string pair = 1;
+  string token0 = 2;
+  string token1 = 3;
+}
+
+message Transfer {
+  string from = 1;
+  string to = 2;
+  string value = 3;
+}
+
+message Mint {
+  string sender = 1;
+  string amount0 = 2;
+  string amount1 = 3;
+}
+
+message Burn {
+  string sender = 1;
+  string to = 2;
+  string amount0 = 3;
+  string amount1 = 4;
+}
+
+message Swap {
+  string sender = 1;
+  string to = 2;
+  string amount0_in = 3;
+  string amount1_in = 4;
+  string amount0_out = 5;
+  string amount1_out = 6;
+}
+
+message Sync {
+  string reserve0 = 1;
+  string reserve1 = 2;
+}

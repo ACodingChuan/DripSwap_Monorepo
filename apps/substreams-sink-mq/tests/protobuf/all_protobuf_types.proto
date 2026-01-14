@@ -1,0 +1,329 @@
+syntax = "proto3";
+
+import "sf/substreams/sink/sql/schema/v1/schema.proto";
+
+package test.protobuf_types.v1;
+
+// ============================================================================
+// ALL PROTOBUF TYPES TEST
+// ============================================================================
+// This file tests ALL protobuf types to ensure our parser handles every
+// possible protobuf field type without semantic annotations
+
+message AllProtobufTypes {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "all_protobuf_types"
+    };
+
+    // ========================================================================
+    // SCALAR TYPES (32-bit)
+    // ========================================================================
+
+    // double - 64-bit IEEE 754 floating point
+    double price_usd = 1;
+    double exchange_rate = 2;
+
+    // float - 32-bit IEEE 754 floating point
+    float volatility = 3;
+    float ratio = 4;
+
+    // int32 - Variable-length signed 32-bit integer
+    int32 small_number = 5;
+    int32 negative_value = 6;
+
+    // int64 - Variable-length signed 64-bit integer
+    int64 big_number = 7;
+    int64 timestamp_seconds = 8;
+
+    // uint32 - Variable-length unsigned 32-bit integer
+    uint32 count = 9;
+    uint32 index = 10;
+
+    // uint64 - Variable-length unsigned 64-bit integer
+    uint64 large_count = 11;
+    uint64 nonce = 12;
+
+    // sint32 - Variable-length signed 32-bit integer (zigzag encoding)
+    sint32 signed_small = 13;
+    sint32 delta = 14;
+
+    // sint64 - Variable-length signed 64-bit integer (zigzag encoding)
+    sint64 signed_large = 15;
+    sint64 balance_change = 16;
+
+    // fixed32 - Always 4 bytes, unsigned 32-bit integer
+    fixed32 fixed_id = 17;
+    fixed32 checksum = 18;
+
+    // fixed64 - Always 8 bytes, unsigned 64-bit integer
+    fixed64 fixed_large = 19;
+    fixed64 magic_number = 20;
+
+    // sfixed32 - Always 4 bytes, signed 32-bit integer
+    sfixed32 signed_fixed_small = 21;
+    sfixed32 coordinate_x = 22;
+
+    // sfixed64 - Always 8 bytes, signed 64-bit integer
+    sfixed64 signed_fixed_large = 23;
+    sfixed64 coordinate_y = 24;
+
+    // bool - Boolean
+    bool is_active = 25;
+    bool has_errors = 26;
+
+    // string - UTF-8 string
+    string name = 27;
+    string description = 28;
+
+    // bytes - Arbitrary byte sequence
+    bytes raw_data = 29;
+    bytes signature_bytes = 30;
+
+    // ========================================================================
+    // ENUMS
+    // ========================================================================
+
+    TransactionStatus status = 31;
+    OperationType operation = 32;
+
+    // ========================================================================
+    // REPEATED FIELDS (Arrays)
+    // ========================================================================
+
+    repeated string tags = 40;
+    repeated uint64 amounts = 41;
+    repeated int32 scores = 42;
+    repeated bool flags = 43;
+    repeated bytes data_chunks = 44;
+    repeated TransactionStatus statuses = 45;
+
+    // ========================================================================
+    // NESTED MESSAGES
+    // ========================================================================
+
+    NestedMessage nested_data = 50;
+    repeated NestedMessage nested_list = 51;
+
+    // ========================================================================
+    // MAPS (Key-Value pairs)
+    // ========================================================================
+
+    map<string, string> metadata = 60;
+    map<string, uint64> balances = 61;
+    map<uint32, string> indexed_data = 62;
+    map<string, NestedMessage> complex_map = 63;
+
+    // ========================================================================
+    // ONEOF (Union types)
+    // ========================================================================
+
+    oneof payload {
+        string text_payload = 70;
+        uint64 numeric_payload = 71;
+        bytes binary_payload = 72;
+        NestedMessage message_payload = 73;
+    }
+
+    oneof identifier {
+        string name_id = 80;
+        uint64 numeric_id = 81;
+        bytes hash_id = 82;
+    }
+
+    // ========================================================================
+    // OPTIONAL FIELDS (proto3 optional)
+    // ========================================================================
+
+    optional string optional_name = 90;
+    optional uint64 optional_amount = 91;
+    optional bool optional_flag = 92;
+    optional NestedMessage optional_nested = 93;
+
+    // ========================================================================
+    // PRIMARY KEY WITHOUT SEMANTIC TYPE
+    // ========================================================================
+
+    string record_id = 100 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true
+    }];
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum TransactionStatus {
+    TRANSACTION_STATUS_UNSPECIFIED = 0;
+    TRANSACTION_STATUS_PENDING = 1;
+    TRANSACTION_STATUS_CONFIRMED = 2;
+    TRANSACTION_STATUS_FAILED = 3;
+    TRANSACTION_STATUS_REVERTED = 4;
+}
+
+enum OperationType {
+    OPERATION_TYPE_UNSPECIFIED = 0;
+    OPERATION_TYPE_TRANSFER = 1;
+    OPERATION_TYPE_MINT = 2;
+    OPERATION_TYPE_BURN = 3;
+    OPERATION_TYPE_SWAP = 4;
+    OPERATION_TYPE_STAKE = 5;
+    OPERATION_TYPE_UNSTAKE = 6;
+}
+
+// ============================================================================
+// NESTED MESSAGE TYPES
+// ============================================================================
+
+message NestedMessage {
+    string nested_id = 1;
+    uint64 nested_value = 2;
+    bool nested_flag = 3;
+    repeated string nested_tags = 4;
+
+    // Nested message within nested message
+    DeeplyNestedMessage deeply_nested = 5;
+}
+
+message DeeplyNestedMessage {
+    string deep_id = 1;
+    double deep_value = 2;
+    repeated uint32 deep_numbers = 3;
+}
+
+// ============================================================================
+// COMPLEX STRUCTURES
+// ============================================================================
+
+message ComplexStructure {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "complex_structures"
+    };
+
+    string structure_id = 1 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true
+    }];
+
+    // Repeated nested messages
+    repeated Transaction transactions = 2;
+
+    // Map with complex values
+    map<string, AccountInfo> accounts = 3;
+
+    // Multiple oneofs
+    oneof data_source {
+        BlockchainData blockchain = 10;
+        DatabaseData database = 11;
+        APIData api = 12;
+    }
+
+    oneof processing_result {
+        ProcessingSuccess success = 20;
+        ProcessingError error = 21;
+    }
+}
+
+message Transaction {
+    string tx_id = 1;
+    uint64 amount = 2;
+    string from_addr = 3;
+    string to_addr = 4;
+    TransactionStatus status = 5;
+    repeated string notes = 6;
+}
+
+message AccountInfo {
+    string account_id = 1;
+    uint64 balance = 2;
+    uint32 transaction_count = 3;
+    bool is_verified = 4;
+    map<string, string> properties = 5;
+}
+
+message BlockchainData {
+    uint64 block_number = 1;
+    string block_hash = 2;
+    repeated string transaction_hashes = 3;
+}
+
+message DatabaseData {
+    string query = 1;
+    uint32 row_count = 2;
+    repeated string columns = 3;
+}
+
+message APIData {
+    string endpoint = 1;
+    uint32 status_code = 2;
+    string response_body = 3;
+    map<string, string> headers = 4;
+}
+
+message ProcessingSuccess {
+    uint32 processed_count = 1;
+    double processing_time_ms = 2;
+    string result_hash = 3;
+}
+
+message ProcessingError {
+    uint32 error_code = 1;
+    string error_message = 2;
+    string stack_trace = 3;
+    repeated string error_details = 4;
+}
+
+// ============================================================================
+// GOOGLE WELL-KNOWN TYPES (if imported)
+// ============================================================================
+// Note: These would require additional imports, included for completeness
+// import "google/protobuf/timestamp.proto";
+// import "google/protobuf/duration.proto";
+// import "google/protobuf/wrappers.proto";
+
+// message WithWellKnownTypes {
+//     google.protobuf.Timestamp created_at = 1;
+//     google.protobuf.Duration elapsed_time = 2;
+//     google.protobuf.StringValue optional_string = 3;
+//     google.protobuf.UInt64Value optional_uint64 = 4;
+// }
+
+// ============================================================================
+// EDGE CASES AND SPECIAL SCENARIOS
+// ============================================================================
+
+message EdgeCases {
+    option (sf.substreams.sink.sql.schema.v1.table) = {
+        name: "edge_cases"
+    };
+
+    // Field with reserved name (might conflict with SQL keywords)
+    string select = 1;
+    string from = 2;
+    string where = 3;
+    string order = 4;
+    string group = 5;
+
+    // Very long field names
+    string this_is_a_very_long_field_name_that_might_cause_issues_with_column_length_limits = 6;
+
+    // Numeric field numbers
+    string field_1 = 101;
+    string field_2 = 102;
+    string field_1000 = 1000;
+
+    // Mixed case and underscores
+    string CamelCaseField = 110;
+    string snake_case_field = 111;
+    string UPPER_CASE_FIELD = 112;
+    string mixedCase_snake_Field = 113;
+
+    // Empty and default values
+    string empty_string = 120;
+    uint64 zero_number = 121;
+    bool false_flag = 122;
+    repeated string empty_array = 123;
+
+    // Primary key
+    string edge_case_id = 200 [(sf.substreams.sink.sql.schema.v1.field) = {
+        primary_key: true
+    }];
+}

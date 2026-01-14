@@ -1,0 +1,59 @@
+[package]
+name = "substreams-kafka-sink"
+version = "0.1.0"
+edition = "2021"
+description = "Substreams sink specialized for Kafka/Redpanda backend"
+
+[dependencies]
+substreams-core = { path = "../substreams-core" }
+
+rdkafka = { version = "0.36", features = ["cmake-build", "libz-static"] }
+
+anyhow = "1"
+async-stream = "0.3"
+futures03 = { package = "futures", version = "0.3.1" }
+tokio = { version = "1.27", features = ["full"] }
+tokio-stream = "0.1"
+tokio-retry = "0.3"
+tonic = { version = "0.12", features = ["gzip", "tls-native-roots"] }
+prost = "0.13"
+prost-types = "0.13"
+thiserror = "1"
+chrono = "0.4.38"
+regex = "1.11.1"
+lazy_static = "1.5.0"
+semver = "1.0.23"
+
+substreams = "0.5"
+
+serde = { version = "1.0.200", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.5.0", features = ["derive", "env"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1.10.0", features = ["v4"] }
+
+prost-reflect = "0.14"
+protobuf = "3.0"
+
+serde_yaml = "0.9"
+
+openssl = { version = "0.10", features = ["vendored"] }
+
+base64ct = "=1.6.0"
+const-oid = "=0.9.6"  
+der = "=0.7.9"
+elliptic-curve = "=0.13.8"
+p256 = "=0.13.2"
+p384 = "=0.13.0"
+pkcs8 = "=0.10.2"
+rsa = "=0.9.6"
+sec1 = "=0.7.3"
+signature = "=2.1.0"
+spki = "=0.7.3"
+
+indexmap = "=1.9.3"  # Avoid 2.x which might have issues
+hashbrown = "=0.12.3"  # Stay on older stable version
+
+[build-dependencies]
+tonic-build = "0.12"
