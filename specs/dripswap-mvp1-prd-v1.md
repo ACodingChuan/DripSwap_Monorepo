@@ -1,14 +1,14 @@
-# PRD：DripSwap MVP-1（数据契约冻结 / Explore & Details 可开发）
+# PRD：DripSwap MVP-1（契约冻结 + Goldsky 读路径落地）
 
 > **版本**：v1（可直接指导开发）
 >
-> **范围定位**：MVP-1 只做“可执行的产品定义 + 数据契约冻结”，不要求本阶段完成后端实现；但文档必须让 MVP-2/MVP-4 的工程实现可以按此直接落地。
+> **范围定位**：MVP-1 同时完成“可执行的产品定义 + 数据契约冻结 + 第一版工程落地（BFF 读 Goldsky + Redis）”。新增页面（Explore Pools / Pool Details）的完整落地在后续 MVP-3。
 >
 > **参考实现**：Uniswap `interface` Explore、`sushiswap` Explore & V2 pool details/management、以及当前 DripSwap 代码现状（`apps/frontend` / `apps/bff` / `apps/subgraphgoldsky`）。
 >
-> **Goldsky 能力前提**：支持 entity 增量推送 + webhook/流式导出 + sink（但 MVP-1 仅规定契约，不强制落地 pipeline）。
+> **Goldsky 能力前提**：支持 entity 增量推送 + webhook/流式导出 + sink（MVP-1 不强制落地 pipeline/webhook 或大 sink）。
 >
-> **最后更新**：2026-01-11
+> **最后更新**：2026-01-16
 
 ---
 
@@ -35,19 +35,21 @@ DripSwap 目标是做一个基于自建 Uniswap V2 Factory 的测试网 DEX，�
 
 ---
 
-## 2. MVP-1 目标与非目标
+## 2. MVP-1 目标与非目标（合并原 MVP-1 + MVP-2）
 
 ### 2.1 目标（必须达成）
 
 1) 冻结 P0 “读查询”数据契约：Explore（Tokens/Pools/Transactions）+ Token Details + Pool Details  
-2) 明确每个字段的数据来源（Goldsky entity/计算口径）与精度/单位/空值规则  
-3) 明确搜索、排序、过滤、limit 的语义与边界  
-4) 明确错误处理契约（哪些场景返回空数组/哪些抛 GraphQL error）以保证前端可稳定渲染  
+2) 落地第一版实现：BFF 读 Goldsky + Redis 缓存，至少保证现有前端页面可跑（Explore Stats/Tokens/Transactions + Token Details）  
+3) 明确每个字段的数据来源（Goldsky entity/计算口径）与精度/单位/空值规则  
+4) 明确搜索、排序、过滤、limit 的语义与边界  
+5) 明确错误处理契约（哪些场景返回空数组/哪些抛 GraphQL error）以保证前端可稳定渲染  
 
 ### 2.2 非目标（MVP-1 不做）
 
-- 不实现任何后端逻辑（实现属于 MVP-2/MVP-4）
-- 不实现 Add/Remove Liquidity 的链上交易（属于 MVP-5）
+- 不要求本阶段落地最小 pipeline/webhook（属于 MVP-2）
+- 不要求本阶段完成 Explore Pools / Pool Details 的前端页面落地与新增 query 的工程实现（属于 MVP-3），但契约在本 PRD 冻结
+- 不实现 Add/Remove Liquidity 的链上交易（属于 MVP-4）
 - 不建设“大 sink”（Postgres/对象存储/队列全量落地，属于 P2）
 - 不做完整 UI 视觉稿（但会规定最小交互与页面结构）
 
@@ -103,9 +105,11 @@ DripSwap 目标是做一个基于自建 Uniswap V2 Factory 的测试网 DEX，�
 
 ---
 
-## 5. 产品范围（MVP-1 要冻结的页面与数据点）
+## 5. 产品范围（MVP-1 要冻结/实现的页面与数据点）
 
-> **注意**：MVP-1 的交付物是“契约 + 口径 + 验收条件”，后端实现与前端改造在后续 MVP 执行。
+> **注意**：MVP-1 的交付物包含：
+> - “契约 + 口径 + 验收条件”（本 PRD）
+> - “第一版工程落地”（BFF 读 Goldsky + Redis），优先保证现有前端页面可运行；新增页面完整落地见后续 MVP
 
 ### 5.1 页面清单（前端现状 vs MVP-1 契约）
 
@@ -148,6 +152,28 @@ DripSwap 目标是做一个基于自建 Uniswap V2 Factory 的测试网 DEX，�
 - 非 list 的 payload（如 `exploreStats`）：允许返回 GraphQL error（前端显示 “Failed to load”）
 - 该策略与当前 `ExploreTokensPage`、`ExploreTransactionsPage` 的 `react-query` error UI 兼容
 
+### 6.1.1 MVP-1 vs MVP-3 的实现边界（本 PRD 的落地口径）
+
+> 本 PRD 在 MVP-1 阶段要求同时做到“契约冻结 + 最小可运行实现（Goldsky + Redis）”。
+> 但考虑到前端当前页面现状，6.x 的 query 会按“现有页面必需 vs 新增页面”分阶段落地：
+
+**MVP-1 必须实现（用于支撑现有前端页面可跑）**
+- 6.2 `exploreStats`（Explore 顶部图表）
+- 6.3 `exploreTokens`（Explore Tokens 列表）
+- 6.5 `recentTransactions`（Explore Transactions 列表，保持兼容；types 过滤可后置）
+- 6.6 `tokenDetails`（Token Details header）
+- 6.7 `tokenPriceCandles`（Token 图表）
+- 6.8 `tokenPools` / `tokenTransactions`（Token Details pools/tx 列表）
+
+**MVP-1 仅冻结契约（允许先返回空/占位；完整落地在 MVP-3）**
+- 6.4 `explorePools`（前端页面仍为占位）
+- 6.9 `poolDetails`（前端页面仍为占位）
+- 6.10 `poolPriceCandles` / `poolTransactions`（依赖 Pool Details 页面落地）
+
+**数据源与依赖约束（MVP-1 默认）**
+- 权威数据源：Goldsky Subgraph
+- BFF：`Redis（read-through） -> Goldsky`（不要求启用 sink/全量落库）
+
 ---
 
 ## 6.2 Query：Explore Stats（协议统计）
@@ -179,6 +205,78 @@ exploreStats(chainId: String!, days: Int): ExploreStatsPayload!
 
 ### 验收标准
 - Explore 页头部（`ExploreProtocolStats`）可渲染两张图（TVL area + Volume bar）且 hover 交互正常。
+
+### MVP-1 实现要求（必须）
+- 必须可在“本地 DB 为空”的情况下正常返回（即读 Goldsky + Redis 缓存）
+- `days` 支持默认与 clamp（1~90）
+- `tvlSeries/volumeSeries` 必须按时间升序返回，且点数不足时补齐到 >=2
+
+### 当前实现状态（repo）
+- ✅ 已完成（满足 MVP-1 的“Goldsky + Redis”最小可运行实现与前端交互验收）
+- 主查询（只返回 chainId/days seed）：`apps/bff/src/main/java/com/dripswap/bff/gql/QueryResolver.java:207`
+- 字段级 resolver（GraphQL 特性：按需计算字段 + 共享 DataLoader）：`apps/bff/src/main/java/com/dripswap/bff/gql/ExploreStatsFieldResolver.java:1`
+- DataLoader（Redis 二级缓存 + Goldsky 批量取数）：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/ExploreStatsDataLoaderRegistrar.java:1`
+- 前端使用与渲染：`apps/frontend/src/app/components/explore-protocol-stats.tsx:45`
+
+### Redis 缓存（当前实现）
+- Full（含 series）
+  - Key：`ds:v2:{chainId}:explore:stats:{days}`
+  - TTL：60s
+  - 说明：由 DataLoader 维护（read-through）
+- Summary（不含 series，用于只查顶部数字时避免拉 series）
+  - Key：`ds:v2:{chainId}:explore:stats:summary`
+  - TTL：60s
+  - 说明：由 DataLoader 维护（read-through）
+
+### BFF GraphQL 验证查询（用于验收 6.2）
+
+```graphql
+query ExploreStats($chainId: String!, $days: Int) {
+  exploreStats(chainId: $chainId, days: $days) {
+    chainId
+    tvlUsd
+    volume24hUsd
+    fees24hUsd
+    tvlSeries { date valueUsd }
+    volumeSeries { date valueUsd }
+  }
+}
+```
+
+Variables (Sepolia example):
+```json
+{ "chainId": "11155111", "days": 30 }
+```
+
+### Goldsky 实体查询（用于核对 6.2 口径）
+
+> 注意：以下查询是 **直查 Goldsky subgraph 的 entity**，不是查 BFF 的 `exploreStats`。
+> 用于核对：
+> - `tvlUsd` ≈ `uniswapFactories[0].totalLiquidityUSD`
+> - `volume24hUsd` ≈ `uniswapDayDatas[0].dailyVolumeUSD`（最新日）
+> - `tvlSeries/volumeSeries` 来自 `uniswapDayDatas(first:$days)`，按 `date` 升序后映射
+
+```graphql
+query ExploreStatsEntities($days: Int!) {
+  factories: uniswapFactories(first: 1) {
+    totalLiquidityUSD
+  }
+  latestDay: uniswapDayDatas(first: 1, orderBy: date, orderDirection: desc) {
+    date
+    dailyVolumeUSD
+  }
+  series: uniswapDayDatas(first: $days, orderBy: date, orderDirection: desc) {
+    date
+    totalLiquidityUSD
+    dailyVolumeUSD
+  }
+}
+```
+
+Variables:
+```json
+{ "days": 30 }
+```
 
 ---
 
@@ -240,10 +338,226 @@ enum ExploreTokenSort {
   - 推荐：`TokenDayData` 最新 `dailyVolumeUSD`（简单稳定）
   - 或：聚合最近 24h `TokenHourData.volumeUSD`（更准确但成本更高）
 
+### 空值规则（MVP-1 实现约束）
+- 若最近 1h / 1d 没有 swap 交易活动（hour/day 的 `volumeUSD` / `dailyVolumeUSD` 为 0），`change1h/change1d` 必须返回 `null`（前端显示 `—`）。
+
 ### 验收标准
 - `apps/frontend/src/app/routes/explore-tokens.tsx`：
   - 搜索 token（symbol/address/name）能得到结果
   - 字段显示不为 NaN；空值显示 `—`
+
+### MVP-1 实现要求（必须）
+- 必须返回前端最小展示字段：`id/symbol/name/priceUsd/change1h/change1d/fdvUsd/volume24hUsd`
+- `sort` 必须保持可选且不影响旧调用（MVP-1 可不实现排序逻辑，但 schema 需允许传入）
+- list query：上游失败/空数据时返回 `[]`
+
+### 当前实现状态（repo）
+- ✅ 已完成（Goldsky 直查 + Redis 缓存；计算字段采用 GraphQL Field Resolver + DataLoader 批量取数，不依赖本地 DB/sink）
+- 主查询（只取基础 token 列表）：`apps/bff/src/main/java/com/dripswap/bff/gql/QueryResolver.java:392`
+- 计算字段 Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/ExploreTokenRowFieldResolver.java:1`
+- DataLoader 批量实现：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/ExploreTokenDataLoaderRegistrar.java:1`
+- GraphQL schema（可选 sort）：`apps/bff/src/main/resources/graphql/schema.graphqls:46`
+
+### Redis 缓存（当前实现）
+- Key：`ds:v2:{chainId}:tokens:list:{limit}:{searchHash}`
+- TTL：60s
+- 说明：只缓存基础 token 列表（id/symbol/name/decimals/totalSupply/derivedETH）；`priceUsd/change1h/change1d/fdvUsd/volume24hUsd` 为按需计算字段（GraphQL field resolver），跨请求不缓存，单次请求内用 DataLoader 批量合并外部查询。
+
+### Redis 二级缓存（DataLoader read-through，用于减少 Goldsky 请求）
+
+> 这些 key 由后端 DataLoader 维护：先 `MGET` 命中则不再请求 Goldsky；miss 才会批量请求并写回 Redis。
+
+- ETH 价格
+  - Key：`ds:v2:{chainId}:bundle:ethPrice`
+  - TTL：60s
+- Token Day stats（用于 `change1d` / `volume24hUsd`）
+  - Key：`ds:v2:{chainId}:token:{tokenId}:dayStats`
+  - TTL：60s
+- Token Hour stats（用于 `change1h`）
+  - Key：`ds:v2:{chainId}:token:{tokenId}:hourStats`
+  - TTL：60s
+
+### BFF GraphQL 验证查询（用于验收 6.3）
+
+```graphql
+query ExploreTokens($chainId: String!, $limit: Int, $search: String) {
+  exploreTokens(chainId: $chainId, limit: $limit, search: $search) {
+    id
+    chainId
+    symbol
+    name
+    decimals
+    totalSupply
+    derivedETH
+    priceUsd
+    change1h
+    change1d
+    fdvUsd
+    volume24hUsd
+  }
+}
+```
+
+Variables (Sepolia example):
+```json
+{ "chainId": "11155111", "limit": 50, "search": "" }
+```
+
+### Goldsky 实体查询（用于核对 6.3 口径）
+
+> 注意：以下查询是 **直查 Goldsky subgraph 的 entity**，不是查 BFF 的 `exploreTokens`。
+> 你可以在 Goldsky 的 GraphQL 页面直接执行，用来核对：
+> - `priceUsd` = `token.derivedETH * bundle.ethPrice`
+> - `change1h` 口径（TokenHourData open/close）
+> - `change1d` 口径（TokenDayData priceUSD 昨天 vs 今天）
+> - `volume24hUsd` 口径（TokenDayData 最新 dailyVolumeUSD）
+>
+> 如果最近 1 小时/1 天没有交易，BFF 的 `change1h/change1d` 会按“无交易则不展示”的规则返回 `null`，
+> 前端会显示为 `—`（即你不会看到任何百分比数值）。
+
+#### 1) 取 ETH 价格（Bundle）+ Top tokens 基础字段
+
+```graphql
+query ExploreTokensEntities($first: Int!) {
+  latestBundle: bundles(first: 1, orderBy: timestamp, orderDirection: desc) {
+    ethPrice
+    timestamp
+  }
+  tokens: tokens(first: $first, orderBy: tradeVolumeUSD, orderDirection: desc) {
+    id
+    symbol
+    name
+    decimals
+    totalSupply
+    derivedETH
+  }
+}
+```
+
+Variables:
+```json
+{ "first": 50 }
+```
+
+#### 2) 取某个 token 的 hour/day 数据（用于验证 change/volume）
+
+```graphql
+query TokenStatsEntities($token: Bytes!, $dayFirst: Int!, $hourFirst: Int!) {
+  token(id: $token) {
+    id
+    symbol
+    name
+    decimals
+    totalSupply
+    derivedETH
+  }
+  latestBundle: bundles(first: 1, orderBy: timestamp, orderDirection: desc) {
+    ethPrice
+  }
+  day: tokenDayDatas(
+    first: $dayFirst
+    orderBy: date
+    orderDirection: desc
+    where: { token: $token }
+  ) {
+    date
+    dailyVolumeUSD
+    dailyTxns
+    priceUSD
+  }
+  hour: tokenHourDatas(
+    first: $hourFirst
+    orderBy: periodStartUnix
+    orderDirection: desc
+    where: { token: $token }
+  ) {
+    periodStartUnix
+    open
+    close
+    volumeUSD
+  }
+}
+```
+
+Variables (example):
+```json
+{ "token": "0x0000000000000000000000000000000000000000", "dayFirst": 2, "hourFirst": 2 }
+```
+
+#### 2.1) 批量取 day/hour（对应 BFF DataLoader 的 `token_in: [...]` 查询）
+
+> 这个版本等价于 BFF 的 batch loader（一次查多个 tokenId），用于你在 Goldsky Playground 里验证“批量过滤器”是否可用。
+
+```graphql
+query TokenDayStatsBatch($tokenIds: [Bytes!]!, $first: Int!) {
+  rows: tokenDayDatas(
+    first: $first
+    orderBy: date
+    orderDirection: desc
+    where: { token_in: $tokenIds }
+  ) {
+    date
+    dailyVolumeUSD
+    dailyTxns
+    priceUSD
+    token { id }
+  }
+}
+```
+
+```graphql
+query TokenHourStatsBatch($tokenIds: [Bytes!]!, $first: Int!) {
+  rows: tokenHourDatas(
+    first: $first
+    orderBy: periodStartUnix
+    orderDirection: desc
+    where: { token_in: $tokenIds }
+  ) {
+    periodStartUnix
+    open
+    close
+    volumeUSD
+    token { id }
+  }
+}
+```
+
+#### 3) 验证“最近 1h / 1d 是否有交易”（用于解释为什么 change 必须为 null）
+
+> 用这个查询直接判断窗口内是否有数据/是否有交易：
+> - 最近 1h：`recentHour[0].volumeUSD > 0` 才认为“有交易”
+> - 最近 1d：`recentDay[0].dailyVolumeUSD > 0` 才认为“有交易”
+>
+> `hourFrom/dayFrom` 需要你在本地按当前时间计算：
+> - `hourFrom` = 当前小时起始 `currentHourStart - 3600`
+> - `dayFrom` = 当天起始 `todayStart - 86400`
+
+```graphql
+query TokenActivityWindow($token: Bytes!, $hourFrom: Int!, $dayFrom: Int!) {
+  recentHour: tokenHourDatas(
+    first: 2
+    orderBy: periodStartUnix
+    orderDirection: desc
+    where: { token: $token, periodStartUnix_gte: $hourFrom }
+  ) {
+    periodStartUnix
+    open
+    close
+    volumeUSD
+  }
+  recentDay: tokenDayDatas(
+    first: 2
+    orderBy: date
+    orderDirection: desc
+    where: { token: $token, date_gte: $dayFrom }
+  ) {
+    date
+    dailyTxns
+    dailyVolumeUSD
+    priceUSD
+  }
+}
+```
 
 ---
 
@@ -314,6 +628,10 @@ type ExplorePoolRow {
 - `apps/frontend/src/app/routes/explore-pools.tsx` 从占位改成真实列表后：
   - 每行可点击跳转到 `/explore/pools/$chain/$poolAddress`（你现有路由已定义）
   - 展示 TVL/Volume/Fee/Tx/APR（空值按 `—`）
+
+### MVP-1 实现要求（契约冻结即可；实现留到 MVP-3）
+- MVP-1 只要求 schema/type/enum 与本节一致
+- resolver 允许暂时返回 `[]`（前端页面当前为占位）
 
 ---
 
@@ -415,6 +733,11 @@ type TransactionPayload {
 ### 验收标准
 - Explore Transactions 页面能在同一列表中展示 Swap/Mint/Burn，并可按类型过滤（UI 可后续做，但后端契约必须支持）。
 
+### MVP-1 实现要求（必须，但允许分步）
+- 必须保持兼容：`recentTransactions(chainId, limit)` 能返回数据（list 失败返回 `[]`）
+- `types` 必须保持可选且不影响旧调用（MVP-1 可不实现过滤逻辑，但 schema 需允许传入）
+- `decodedData` JSON 结构必须稳定（字段名/类型对齐本节），避免前端 parse 失败
+
 ---
 
 ## 6.6 Query：Token Details（已存在，冻结口径）
@@ -440,6 +763,10 @@ tokenDetails(chainId: String!, tokenAddress: String!): TokenDetails
 
 ### 验收标准
 - `apps/frontend/src/app/routes/token-details.tsx` 顶部 header 数据可正确展示，不需要 mock。
+
+### MVP-1 实现要求（必须）
+- 必须可在“本地 DB 为空”的情况下正常返回（即读 Goldsky + Redis 缓存）
+- 缺数据时允许字段为 null，但页面不应出现 NaN/崩溃
 
 ---
 
@@ -473,6 +800,10 @@ tokenPriceCandles(
 ### 验收标准
 - Token Details 的 1D/1W/1M/1Y 区间都能有合理数据（缺数据时返回空数组，前端显示空态或 fallback）。
 
+### MVP-1 实现要求（必须）
+- `timestamp` 必须为 bucket 的 periodStart（seconds），并按 timestamp 升序返回
+- 当 minute/hour 数据窗口不足时，允许返回 `[]`（由前端做空态/降级）
+
 ---
 
 ## 6.8 Query：Token Pools / Token Transactions（已存在，冻结）
@@ -492,6 +823,10 @@ tokenTransactions(chainId: String!, tokenAddress: String!, limit: Int): [TokenTr
 - Token Details 页面：
   - Pools 表可展示 top pools
   - Transactions 表可展示 swaps
+
+### MVP-1 实现要求（必须）
+- `limit` 支持默认与 clamp；list 失败返回 `[]`
+- `tokenPools/tokenTransactions` 返回结构应满足前端渲染，不需要 mock 字段
 
 ---
 
@@ -531,6 +866,10 @@ type PoolDetails {
 
 ### 验收标准
 - `apps/frontend/src/app/routes/pool-details.tsx` 可改造成真实数据渲染（不需要临时 mock）。
+
+### MVP-1 实现要求（契约冻结即可；实现留到 MVP-3）
+- MVP-1 只要求 schema/type 与本节一致
+- resolver 允许暂时返回 `null`（前端页面当前为占位）
 
 ---
 
@@ -590,11 +929,15 @@ type PoolTransactionRow {
 - `poolTransactions`：
   - 从 `Swap/Mint/Burn` 实体按 timestamp desc 拉取
 
+### MVP-1 实现要求（契约冻结即可；实现留到 MVP-3）
+- MVP-1 只要求 schema/type/enum 与本节一致
+- resolver 允许暂时返回 `[]`（依赖 Pool Details 页面落地）
+
 ---
 
 ## 7. 前端交互与页面需求（按页面列出开发要点）
 
-> MVP-1 冻结“页面需要什么数据”，以便前端与后端并行开发。
+> MVP-1 冻结“页面需要什么数据”，并落地“现有页面可跑”的最小实现；新增页面在后续 MVP 完整落地。
 
 ### 7.1 Explore Layout（全局）
 
@@ -683,11 +1026,36 @@ type PoolTransactionRow {
 - `search` 空：无过滤
 - `decodedData` JSON：字段齐全且能被前端 parse
 
+### 9.3 工程验收（可运行）
+
+**数据源验收（不依赖 sink/全量落库）**
+- 在本地 DB 为空/未启用 sink 的情况下：
+  - `exploreStats` / `exploreTokens` / `recentTransactions` / `tokenDetails` / `tokenPriceCandles` / `tokenPools` / `tokenTransactions` 仍可返回并驱动前端渲染
+- BFF 读路径：`Redis（read-through） -> Goldsky`，缓存 key 与 TTL 生效（至少 `exploreStats`）
+
+**页面验收（以现有前端页面为准）**
+- 本地起 `apps/bff` + `apps/frontend`：
+  - Explore：Stats/Tokens/Transactions 可渲染
+  - Token Details：header + candles + pools + tx 列表可渲染
+
+**接口验收（MVP-1 必须实现）**
+- BFF 至少实现并稳定返回（与当前前端调用兼容）：
+  - `exploreStats(chainId, days)`
+  - `exploreTokens(chainId, limit, search)`
+  - `recentTransactions(chainId, limit)`
+  - `tokenDetails/tokenPriceCandles/tokenPools/tokenTransactions`
+
+**接口验收（MVP-1 仅冻结契约，允许占位）**
+- 允许暂时返回空/占位（但 schema 必须存在且类型一致）：
+  - `explorePools` → `[]`
+  - `poolDetails` → `null`
+  - `poolPriceCandles` / `poolTransactions` → `[]`
+
 ---
 
 ## 10. 后续文档拆分建议（从 MVP-1 派生）
 
-- MVP-2（BFF 读 Goldsky + Redis）工程设计：模块划分、错误策略、缓存 key、重试/超时
-- MVP-3（最小 pipeline）PRD：webhook payload、幂等键、失效 key 规则、可选预热
-- MVP-4（Explore Pools + Pool Details）前端页面 PRD：表格列、排序、空态、跳转
-
+- MVP-2（最小 pipeline）PRD：webhook payload、幂等键、失效 key 规则、可选预热
+- MVP-3（Explore Pools + Pool Details）前端页面 PRD：表格列、排序、空态、跳转
+- MVP-4（V2 Add/Remove Liquidity）前端交易 PRD：approve/slippage/deadline、错误处理、状态追踪
+- MVP-5（Faucet）PRD：领取路径（二选一）、风控与历史记录

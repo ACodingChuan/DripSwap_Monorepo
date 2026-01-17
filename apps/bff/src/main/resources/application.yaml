@@ -4,10 +4,12 @@ spring:
 
   datasource:
     # New DB mode:
-    # - Postgres runs on VPS, but locally accessed via autossh tunnel -> localhost:{BFF_DB_PORT}
+    # - Postgres host/port are provided via env (.env is sourced by pnpm scripts).
     # - DB contains two schemas: app (Liquibase/JPA) + goldsky (Goldsky sink tables)
-    # - Use `currentSchema=app,goldsky` so app can read goldsky tables without fully-qualifying.
-    url: ${BFF_DB_URL:jdbc:postgresql://${BFF_DB_HOST:localhost}:${BFF_DB_PORT:5432}/${BFF_DB_NAME:${APP_DB:appdb}}?currentSchema=${BFF_DB_SCHEMAS:app,goldsky}}
+    # - Use `currentSchema=goldsky,app` so reads prefer Goldsky tables; app schema is optional.
+    # Note: some SSH tunnel setups + Postgres docker exposure will reset on SSL negotiation.
+    # Force plaintext unless you explicitly override via BFF_DB_URL.
+    url: ${BFF_DB_URL:jdbc:postgresql://${BFF_DB_HOST}:${BFF_DB_PORT}/${BFF_DB_NAME:${APP_DB}}?currentSchema=${BFF_DB_SCHEMAS:goldsky,app}&sslmode=${BFF_DB_SSLMODE:disable}}
     username: ${BFF_DB_USER:${APP_DB_USER:app}}
     password: ${BFF_DB_PASSWORD:${APP_DB_PASSWORD:}}
     driver-class-name: org.postgresql.Driver
@@ -19,36 +21,30 @@ spring:
       maximum-pool-size: ${BFF_DB_POOL_MAX:10}
       minimum-idle: ${BFF_DB_POOL_MIN:0}
 
-  # Graph-node 只读数据源（需在代码中手动配置 DataSource，不走 JPA/Liquibase）
-  datasource-graph:
-    url: ${GRAPH_DB_URL:jdbc:postgresql://localhost:5432/graph_node}
-    username: ${GRAPH_DB_USER:graph}
-    password: ${GRAPH_DB_PASSWORD:graph}
-    driver-class-name: org.postgresql.Driver
-
   jpa:
     hibernate:
       ddl-auto: none
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
-        # Put all JPA tables into `app` schema by default (matches VPS schema layout).
-        default_schema: ${BFF_DB_SCHEMA_APP:app}
         # Allow the app to boot even if the autossh tunnel is not ready yet.
         # (All ids are provided by subgraph, no sequences needed.)
         boot:
           allow_jdbc_metadata_access: ${BFF_HIBERNATE_ALLOW_JDBC_METADATA:false}
 
   liquibase:
+    # Keep Liquibase enabled, but use an empty changelog so it only manages its own bookkeeping tables.
     enabled: ${BFF_LIQUIBASE_ENABLED:true}
     change-log: classpath:db/changelog/db.changelog-master.xml
     default-schema: ${BFF_DB_SCHEMA_APP:app}
     liquibase-schema: ${BFF_DB_SCHEMA_APP:app}
 
-  redis:
-    host: ${BFF_REDIS_HOST:localhost}
-    port: ${BFF_REDIS_PORT:6379}
-    password: ${BFF_REDIS_PASSWORD:${REDIS_PASSWORD:}}
+  data:
+    redis:
+      host: ${BFF_REDIS_HOST:localhost}
+      port: ${BFF_REDIS_PORT:6379}
+      database: ${BFF_REDIS_DB:0}
+      password: ${BFF_REDIS_PASSWORD:${REDIS_PASSWORD:}}
 
   graphql:
     graphiql:
@@ -57,57 +53,20 @@ spring:
     schema:
       locations: classpath:graphql/**/
     path: /graphql
-  web:
-    cors:
-      mappings:
-        - path-pattern: "/**"
-          allowed-origins: "${BFF_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}"
-          allowed-methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-          allowed-headers: "*"
-          allow-credentials: true
 
 server:
   port: ${BFF_SERVER_PORT:8080}
 
 subgraph:
-  batch-size: ${SUBGRAPH_BATCH_SIZE:500}
-  retry-count: ${SUBGRAPH_RETRY_COUNT:3}
-  delta:
-    enabled: ${SUBGRAPH_DELTA_ENABLED:true}
-    tick-ms: ${SUBGRAPH_DELTA_TICK_MS:5000}
-    interval-schedule-seconds: [120, 120, 120, 240, 360, 600]
-    reset-on-change: true
-    reset-on-ws-signal: true
-    batch-size: ${SUBGRAPH_DELTA_BATCH_SIZE:500}
-    max-pages-per-tick: ${SUBGRAPH_DELTA_MAX_PAGES_PER_TICK:2}
-    max-total-records-per-tick: ${SUBGRAPH_DELTA_MAX_TOTAL_RECORDS_PER_TICK:5000}
+  # Goldsky subgraph endpoints (chain router). Id must match QueryResolver.normalizeChainId().
   chains:
     - id: sepolia
       chain-id: 11155111
       enabled: true
-      endpoint: "https://api.studio.thegraph.com/query/1718761/dripswap-v-2-sepolia/version/latest"
+      endpoint: ${GOLDSKY_SEPOLIA_ENDPOINT:https://api.goldsky.com/api/public/project_cmke483ckgziz01w9gr6cb0we/subgraphs/dripswap-v2-sepolia/1.0.5/gn}
       start-block: 9573280
     - id: scroll-sepolia
       chain-id: 534351
       enabled: true
-      endpoint: "https://api.studio.thegraph.com/query/1716244/dripswap_v2_scroll_sepolia/version/latest"
+      endpoint: ${GOLDSKY_SCROLL_SEPOLIA_ENDPOINT:https://api.goldsky.com/api/public/project_cmjbktp0056ic01yj30ya4t7q/subgraphs/dripswap-v2-scroll-sepolia/1.0.5/gn}
       start-block: 0
-
-# DripSwap multi-chain configuration
-dripswap:
-  chains:
-    - id: sepolia
-      name: Ethereum Sepolia
-      chainId: 11155111
-      enabled: false
-      rpc:
-        http: "${BFF_SEPOLIA_RPC_HTTP:https://sepolia.example-rpc.io}"
-        ws: "${BFF_SEPOLIA_RPC_WS:wss://eth-sepolia.g.alchemy.com/v2/DhJ0V7QwXBRjUtK5_kL8nbauZLdn5WRI}"
-    - id: scroll-sepolia
-      name: Scroll Sepolia
-      chainId: 534351
-      enabled: false
-      rpc:
-        http: "${BFF_SCROLL_SEPOLIA_RPC_HTTP:https://scroll-sepolia.example-rpc.io}"
-        ws: "${BFF_SCROLL_SEPOLIA_RPC_WS:wss://scroll-sepolia.g.alchemy.com/v2/DhJ0V7QwXBRjUtK5_kL8nbauZLdn5WRI}"
-

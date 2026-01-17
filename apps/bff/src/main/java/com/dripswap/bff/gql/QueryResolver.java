@@ -16,7 +16,7 @@ import com.dripswap.bff.entity.TokenMinuteData;
 import com.dripswap.bff.entity.UniswapDayData;
 import com.dripswap.bff.entity.UniswapFactory;
 import com.dripswap.bff.gql.payload.ExploreSeriesPointPayload;
-import com.dripswap.bff.gql.payload.ExploreStatsPayload;
+import com.dripswap.bff.gql.payload.ExploreStatsSeed;
 import com.dripswap.bff.gql.payload.ExploreTokenRowPayload;
 import com.dripswap.bff.gql.payload.RawEventPayload;
 import com.dripswap.bff.gql.payload.TokenDetailsPayload;
@@ -42,15 +42,18 @@ import com.dripswap.bff.repository.UniswapFactoryRepository;
 import com.dripswap.bff.sync.SubgraphClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
+import graphql.GraphqlErrorException;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.graphql.execution.ErrorType;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
+import graphql.schema.DataFetchingEnvironment;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -129,7 +132,7 @@ public class QueryResolver {
             String redisKey = String.format("ds:v2:%s:tx:global:recent:%d", normalizedChainId, size);
             
             // 1. Try Redis first
-            String cached = redisTemplate.opsForValue().get(redisKey);
+            String cached = safeRedisGet(redisKey);
             if (cached != null && !cached.isEmpty()) {
                 try {
                     List<TransactionPayload> result = objectMapper.readValue(
@@ -203,247 +206,134 @@ public class QueryResolver {
     }
 
     @QueryMapping
-    public ExploreStatsPayload exploreStats(@Argument String chainId, @Argument Integer days) {
+    public ExploreStatsSeed exploreStats(@Argument String chainId, @Argument Integer days, DataFetchingEnvironment env) {
         String normalizedChainId = normalizeChainId(chainId);
         int windowDays = days == null ? 30 : Math.max(1, Math.min(days, 90));
-        
-        // Redis key: ds:v2:{chain}:explore:stats:{days}
-        String redisKey = String.format("ds:v2:%s:explore:stats:%d", normalizedChainId, windowDays);
-        
-        // 1. Try Redis first
-        String cached = redisTemplate.opsForValue().get(redisKey);
-        if (cached != null && !cached.isEmpty()) {
-            try {
-                ExploreStatsPayload result = objectMapper.readValue(cached, ExploreStatsPayload.class);
-                log.debug("Redis HIT: {} - returned stats", redisKey);
-                return result;
-            } catch (Exception e) {
-                log.warn("Redis deserialization failed for key: {}, fallback to DB", redisKey, e);
-            }
+        boolean needsSeries = env != null && (env.getSelectionSet().contains("tvlSeries") || env.getSelectionSet().contains("volumeSeries"));
+        if (env != null) {
+            env.getGraphQlContext().put("exploreStats:needsSeries:" + normalizedChainId + ":" + windowDays, needsSeries);
         }
-        
-        // 2. Redis miss - query Goldsky (subgraph) first, then fallback to DB
-        log.debug("Redis MISS: {} - querying subgraph", redisKey);
-
-        ExploreStatsPayload result = null;
-        try {
-            String endpoint = resolveSubgraphEndpoint(normalizedChainId);
-            if (endpoint != null && !endpoint.isBlank()) {
-                String query = """
-                    query ExploreStats($days: Int!) {
-                      factories: uniswapFactories(first: 1) {
-                        totalLiquidityUSD
-                      }
-                      latestDay: uniswapDayDatas(first: 1, orderBy: date, orderDirection: desc) {
-                        dailyVolumeUSD
-                      }
-                      series: uniswapDayDatas(first: $days, orderBy: date, orderDirection: desc) {
-                        date
-                        totalLiquidityUSD
-                        dailyVolumeUSD
-                      }
-                    }
-                    """;
-
-                JsonNode data = subgraphClient.query(endpoint, query, Map.of("days", windowDays));
-
-                BigDecimal tvlUsd = BigDecimal.ZERO;
-                JsonNode factories = data == null ? null : data.get("factories");
-                if (factories != null && factories.isArray() && !factories.isEmpty()) {
-                    tvlUsd = parseBigDecimalField(factories.get(0), "totalLiquidityUSD");
-                }
-
-                BigDecimal volume24hUsd = BigDecimal.ZERO;
-                JsonNode latestDay = data == null ? null : data.get("latestDay");
-                if (latestDay != null && latestDay.isArray() && !latestDay.isEmpty()) {
-                    volume24hUsd = parseBigDecimalField(latestDay.get(0), "dailyVolumeUSD");
-                }
-
-                JsonNode series = data == null ? null : data.get("series");
-                List<ExploreSeriesPointPayload> tvlSeries = new ArrayList<>();
-                List<ExploreSeriesPointPayload> volumeSeries = new ArrayList<>();
-                if (series != null && series.isArray()) {
-                    for (JsonNode row : series) {
-                        Integer date = row.hasNonNull("date") ? row.get("date").asInt() : null;
-                        if (date == null) continue;
-
-                        tvlSeries.add(ExploreSeriesPointPayload.builder()
-                                .date(date)
-                                .valueUsd(parseBigDecimalField(row, "totalLiquidityUSD"))
-                                .build());
-                        volumeSeries.add(ExploreSeriesPointPayload.builder()
-                                .date(date)
-                                .valueUsd(parseBigDecimalField(row, "dailyVolumeUSD"))
-                                .build());
-                    }
-                }
-
-                tvlSeries.sort(Comparator.comparingInt(ExploreSeriesPointPayload::getDate));
-                volumeSeries.sort(Comparator.comparingInt(ExploreSeriesPointPayload::getDate));
-
-                if (tvlSeries.isEmpty() && tvlUsd.compareTo(BigDecimal.ZERO) > 0) {
-                    tvlSeries = synthesizeDailySeries(tvlUsd, tvlUsd);
-                }
-                if (volumeSeries.isEmpty() && volume24hUsd.compareTo(BigDecimal.ZERO) > 0) {
-                    volumeSeries = synthesizeDailySeries(volume24hUsd, BigDecimal.ZERO);
-                }
-
-                // Frontend requires >= 2 points to render charts; if data is too fresh, pad a previous day.
-                tvlSeries = padSeriesIfNeeded(tvlSeries, tvlUsd);
-                volumeSeries = padSeriesIfNeeded(volumeSeries, BigDecimal.ZERO);
-
-                if (volume24hUsd.compareTo(BigDecimal.ZERO) == 0 && !volumeSeries.isEmpty()) {
-                    volume24hUsd = safeBigDecimal(volumeSeries.get(volumeSeries.size() - 1).getValueUsd());
-                }
-                if (tvlUsd.compareTo(BigDecimal.ZERO) == 0 && !tvlSeries.isEmpty()) {
-                    tvlUsd = safeBigDecimal(tvlSeries.get(tvlSeries.size() - 1).getValueUsd());
-                }
-
-                BigDecimal fees24hUsd = volume24hUsd.multiply(new BigDecimal("0.003"));
-
-                result = ExploreStatsPayload.builder()
-                        .chainId(normalizedChainId)
-                        .tvlUsd(tvlUsd)
-                        .volume24hUsd(volume24hUsd)
-                        .fees24hUsd(fees24hUsd)
-                        .tvlSeries(tvlSeries)
-                        .volumeSeries(volumeSeries)
-                        .build();
-            }
-        } catch (Exception e) {
-            log.warn("Subgraph exploreStats failed, fallback to DB: chainId={}, days={}, err={}",
-                    normalizedChainId, windowDays, e.getMessage());
-        }
-
-        if (result == null) {
-            log.debug("Subgraph unavailable; querying DB for exploreStats: chainId={}", normalizedChainId);
-
-            UniswapFactory factory = uniswapFactoryRepository
-                    .findFirstByChainIdOrderByUpdatedAtDesc(normalizedChainId)
-                    .orElse(null);
-
-            BigDecimal tvlUsd = factory == null ? BigDecimal.ZERO : safeBigDecimal(factory.getTotalLiquidityUsd());
-
-            UniswapDayData latestDay = uniswapDayDataRepository
-                    .findFirstByChainIdOrderByDateDesc(normalizedChainId)
-                    .orElse(null);
-
-            BigDecimal volume24hUsd = latestDay == null ? BigDecimal.ZERO : safeBigDecimal(latestDay.getDailyVolumeUsd());
-            BigDecimal fees24hUsd = volume24hUsd.multiply(new BigDecimal("0.003"));
-
-            List<UniswapDayData> seriesRows = uniswapDayDataRepository.findByChainIdOrderByDateDesc(
-                    normalizedChainId,
-                    PageRequest.of(0, windowDays)
-            );
-
-            List<ExploreSeriesPointPayload> tvlSeries = seriesRows.stream()
-                    .sorted(Comparator.comparingInt(UniswapDayData::getDate))
-                    .map(row -> ExploreSeriesPointPayload.builder()
-                            .date(row.getDate())
-                            .valueUsd(safeBigDecimal(row.getTotalLiquidityUsd()))
-                            .build())
-                    .toList();
-
-            List<ExploreSeriesPointPayload> volumeSeries = seriesRows.stream()
-                    .sorted(Comparator.comparingInt(UniswapDayData::getDate))
-                    .map(row -> ExploreSeriesPointPayload.builder()
-                            .date(row.getDate())
-                            .valueUsd(safeBigDecimal(row.getDailyVolumeUsd()))
-                            .build())
-                    .toList();
-
-            result = ExploreStatsPayload.builder()
-                    .chainId(normalizedChainId)
-                    .tvlUsd(tvlUsd)
-                    .volume24hUsd(volume24hUsd)
-                    .fees24hUsd(fees24hUsd)
-                    .tvlSeries(padSeriesIfNeeded(
-                            tvlSeries.isEmpty() && tvlUsd.compareTo(BigDecimal.ZERO) > 0 ? synthesizeDailySeries(tvlUsd, tvlUsd) : tvlSeries,
-                            tvlUsd
-                    ))
-                    .volumeSeries(padSeriesIfNeeded(
-                            volumeSeries.isEmpty() && volume24hUsd.compareTo(BigDecimal.ZERO) > 0 ? synthesizeDailySeries(volume24hUsd, BigDecimal.ZERO) : volumeSeries,
-                            BigDecimal.ZERO
-                    ))
-                    .build();
-        }
-        
-        // 3. Write back to Redis with TTL
-        try {
-            String json = objectMapper.writeValueAsString(result);
-            redisTemplate.opsForValue().set(redisKey, json,
-                java.time.Duration.ofSeconds(TTL_STATS_SECONDS));
-            log.debug("Redis SET: {} - cached stats for {}s", redisKey, TTL_STATS_SECONDS);
-        } catch (Exception e) {
-            log.warn("Failed to cache exploreStats to Redis: {}", redisKey, e);
-        }
-        
-        return result;
+        return new ExploreStatsSeed(normalizedChainId, windowDays);
     }
 
     @QueryMapping
     public List<ExploreTokenRowPayload> exploreTokens(
             @Argument String chainId,
             @Argument Integer limit,
-            @Argument String search
+            @Argument String search,
+            @Argument ExploreTokenSort sort
     ) {
         String normalizedChainId = normalizeChainId(chainId);
         int size = limit == null ? 50 : Math.max(1, Math.min(limit, 200));
-        
+
         // Redis key: ds:v2:{chain}:tokens:list:{limit}:{searchHash}
-        String searchKey = (search == null || search.trim().isEmpty()) 
-            ? "all" 
-            : Integer.toHexString(search.trim().toLowerCase().hashCode());
-        String redisKey = String.format("ds:v2:%s:tokens:list:%d:%s", 
-            normalizedChainId, size, searchKey);
-        
+        String searchKey = (search == null || search.trim().isEmpty())
+                ? "all"
+                : Integer.toHexString(search.trim().toLowerCase(Locale.ROOT).hashCode());
+        String redisKey = String.format("ds:v2:%s:tokens:list:%d:%s", normalizedChainId, size, searchKey);
+
         // 1. Try Redis first
-        String cached = redisTemplate.opsForValue().get(redisKey);
+        String cached = safeRedisGet(redisKey);
         if (cached != null && !cached.isEmpty()) {
             try {
                 List<ExploreTokenRowPayload> result = objectMapper.readValue(
-                    cached,
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, ExploreTokenRowPayload.class)
+                        cached,
+                        objectMapper.getTypeFactory().constructCollectionType(List.class, ExploreTokenRowPayload.class)
                 );
                 log.debug("Redis HIT: {} - returned {} tokens", redisKey, result.size());
                 return result;
             } catch (Exception e) {
-                log.warn("Redis deserialization failed for key: {}, fallback to DB", redisKey, e);
+                log.warn("Redis deserialization failed for key: {}, fallback to subgraph", redisKey, e);
             }
         }
-        
-        // 2. Redis miss - query DB
-        log.debug("Redis MISS: {} - querying DB", redisKey);
 
-        List<Token> base = tokenRepository.findByChainIdOrderByTradeVolumeUsdDesc(normalizedChainId);
-        Stream<Token> stream = base.stream();
+        // 2. Redis miss - query Goldsky subgraph (preferred), fallback to DB only if subgraph is unavailable.
+        log.debug("Redis MISS: {} - querying subgraph", redisKey);
 
-        if (search != null && !search.trim().isEmpty()) {
-            String q = search.trim().toLowerCase(Locale.ROOT);
-            stream = stream.filter(token ->
-                    token.getId().toLowerCase(Locale.ROOT).contains(q)
-                            || token.getSymbol().toLowerCase(Locale.ROOT).contains(q)
-                            || token.getName().toLowerCase(Locale.ROOT).contains(q)
-            );
-        }
-
-        List<ExploreTokenRowPayload> result = stream
-                .limit(size)
-                .map(token -> toExploreTokenRow(normalizedChainId, token))
-                .toList();
-        
-        // 3. Write back to Redis with TTL
         try {
-            String json = objectMapper.writeValueAsString(result);
-            redisTemplate.opsForValue().set(redisKey, json,
-                java.time.Duration.ofSeconds(TTL_TOKEN_LIST_SECONDS));
-            log.debug("Redis SET: {} - cached {} tokens for {}s", 
-                redisKey, result.size(), TTL_TOKEN_LIST_SECONDS);
+            String endpoint = requireSubgraphEndpoint(normalizedChainId);
+
+            // We fetch a larger page and apply search filtering in-memory to avoid relying on subgraph OR filters.
+            int fetchSize = Math.min(500, Math.max(200, size * 5));
+
+            String query = """
+                query ExploreTokens($first: Int!) {
+                  tokens: tokens(first: $first, orderBy: tradeVolumeUSD, orderDirection: desc) {
+                    id
+                    symbol
+                    name
+                    decimals
+                    totalSupply
+                    derivedETH
+                  }
+                }
+                """;
+
+            JsonNode data = subgraphClient.query(endpoint, query, Map.of("first", fetchSize));
+            JsonNode tokensNode = data == null ? null : data.get("tokens");
+            if (tokensNode == null || !tokensNode.isArray()) {
+                return List.of();
+            }
+
+            String q = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
+
+            // Parse & filter token rows. Computed fields are resolved lazily via field resolvers + DataLoader.
+            List<ExploreTokenRowPayload> result = new ArrayList<>();
+            for (JsonNode n : tokensNode) {
+                String id = n.hasNonNull("id") ? n.get("id").asText("") : "";
+                if (id.isBlank()) continue;
+
+                String symbol = n.hasNonNull("symbol") ? n.get("symbol").asText("") : "";
+                String name = n.hasNonNull("name") ? n.get("name").asText("") : "";
+
+                if (!q.isEmpty()) {
+                    String idLc = id.toLowerCase(Locale.ROOT);
+                    if (!idLc.contains(q)
+                            && !symbol.toLowerCase(Locale.ROOT).contains(q)
+                            && !name.toLowerCase(Locale.ROOT).contains(q)) {
+                        continue;
+                    }
+                }
+
+                Integer decimals = parseIntField(n, "decimals");
+                BigDecimal totalSupply = parseBigDecimalField(n, "totalSupply");
+                BigDecimal derivedEth = parseBigDecimalField(n, "derivedETH");
+
+                result.add(ExploreTokenRowPayload.builder()
+                        .id(id)
+                        .chainId(normalizedChainId)
+                        .symbol(symbol)
+                        .name(name)
+                        .decimals(decimals == null ? 0 : decimals)
+                        .totalSupply(totalSupply == null ? BigDecimal.ZERO : totalSupply)
+                        .derivedETH(derivedEth == null ? BigDecimal.ZERO : derivedEth)
+                        .build());
+
+                if (result.size() >= size) {
+                    break;
+                }
+            }
+
+            if (result.isEmpty()) {
+                return List.of();
+            }
+
+            // 3. Write back to Redis with TTL
+            try {
+                String json = objectMapper.writeValueAsString(result);
+                redisTemplate.opsForValue().set(redisKey, json, java.time.Duration.ofSeconds(TTL_TOKEN_LIST_SECONDS));
+                log.debug("Redis SET: {} - cached {} tokens for {}s", redisKey, result.size(), TTL_TOKEN_LIST_SECONDS);
+            } catch (Exception e) {
+                log.warn("Failed to cache exploreTokens to Redis: {}", redisKey, e);
+            }
+
+            return result;
+        } catch (GraphqlErrorException e) {
+            throw e;
         } catch (Exception e) {
-            log.warn("Failed to cache exploreTokens to Redis: {}", redisKey, e);
+            log.error("exploreTokens subgraph failed: chainId={}, limit={}, search={}", chainId, limit, search, e);
+            return List.of();
         }
-        
-        return result;
     }
 
     @QueryMapping
@@ -709,16 +599,177 @@ public class QueryResolver {
                 .toList();
     }
 
-    private ExploreTokenRowPayload toExploreTokenRow(String chainId, Token token) {
-        return ExploreTokenRowPayload.builder()
-                .id(token.getId())
-                .chainId(chainId)
-                .symbol(token.getSymbol())
-                .name(token.getName())
-                .decimals(token.getDecimals())
-                .totalSupply(token.getTotalSupply())
-                .derivedETH(token.getDerivedEth())
-                .build();
+    private String requireSubgraphEndpoint(String normalizedChainId) {
+        String endpoint = resolveSubgraphEndpoint(normalizedChainId);
+        if (endpoint == null || endpoint.isBlank()) {
+            throw GraphqlErrorException.newErrorException()
+                    .message("Unsupported chainId: " + normalizedChainId)
+                    // GraphqlErrorException uses graphql-java's ErrorClassification naming.
+                    .errorClassification(ErrorType.BAD_REQUEST)
+                    .build();
+        }
+        return endpoint;
+    }
+
+    private Integer parseIntField(JsonNode node, String fieldName) {
+        if (node == null || fieldName == null) return null;
+        JsonNode v = node.get(fieldName);
+        if (v == null || v.isNull()) return null;
+        try {
+            if (v.isInt()) return v.intValue();
+            if (v.isNumber()) return v.numberValue().intValue();
+            String text = v.asText(null);
+            if (text == null || text.isBlank()) return null;
+            return new java.math.BigInteger(text).intValue();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @Value
+    private static class TokenRow {
+        String id;
+        String symbol;
+        String name;
+        Integer decimals;
+        BigDecimal totalSupply;
+        BigDecimal derivedEth;
+    }
+
+    @Value
+    private static class DayStats {
+        Integer latestDate;
+        BigDecimal latestPriceUsd;
+        BigDecimal prevPriceUsd;
+        BigDecimal latestVolumeUsd;
+        BigDecimal latestTxns;
+    }
+
+    @Value
+    private static class HourStats {
+        Integer periodStartUnix;
+        BigDecimal open;
+        BigDecimal close;
+        BigDecimal volumeUsd;
+    }
+
+    private Map<String, DayStats> fetchTokenDayStats(String endpoint, List<String> tokenIds) {
+        try {
+            int first = Math.min(5000, Math.max(50, tokenIds.size() * 3));
+            String q = """
+                query TokenDayStats($tokenIds: [Bytes!]!, $first: Int!) {
+                  rows: tokenDayDatas(
+                    first: $first
+                    orderBy: date
+                    orderDirection: desc
+                    where: { token_in: $tokenIds }
+                  ) {
+                    date
+                    dailyVolumeUSD
+                    dailyTxns
+                    priceUSD
+                    token { id }
+                  }
+                }
+                """;
+
+            JsonNode data = subgraphClient.query(endpoint, q, Map.of("tokenIds", tokenIds, "first", first));
+            JsonNode rows = data == null ? null : data.get("rows");
+            if (rows == null || !rows.isArray()) return Map.of();
+
+            Map<String, List<JsonNode>> byToken = new HashMap<>();
+            for (JsonNode n : rows) {
+                JsonNode token = n.get("token");
+                String id = token != null && token.hasNonNull("id") ? token.get("id").asText("") : "";
+                if (id.isBlank()) continue;
+                byToken.computeIfAbsent(id.toLowerCase(Locale.ROOT), k -> new ArrayList<>()).add(n);
+            }
+
+            Map<String, DayStats> out = new HashMap<>();
+            for (String tokenId : tokenIds) {
+                List<JsonNode> list = byToken.get(tokenId.toLowerCase(Locale.ROOT));
+                if (list == null || list.isEmpty()) continue;
+
+                // list is in desc order by date; take first as latest and find a previous day.
+                JsonNode latest = list.get(0);
+                int latestDate = latest.hasNonNull("date") ? latest.get("date").asInt() : 0;
+                BigDecimal latestPrice = parseBigDecimalField(latest, "priceUSD");
+                BigDecimal latestVol = parseBigDecimalField(latest, "dailyVolumeUSD");
+                BigDecimal latestTxns = parseBigDecimalField(latest, "dailyTxns");
+
+                BigDecimal prevPrice = null;
+                int targetDate = latestDate - 86_400;
+                for (int i = 1; i < list.size(); i++) {
+                    JsonNode candidate = list.get(i);
+                    int d = candidate.hasNonNull("date") ? candidate.get("date").asInt() : 0;
+                    if (d <= targetDate) {
+                        prevPrice = parseBigDecimalField(candidate, "priceUSD");
+                        break;
+                    }
+                }
+
+                out.put(tokenId, new DayStats(latestDate, latestPrice, prevPrice, latestVol, latestTxns));
+            }
+            return out;
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    private Map<String, HourStats> fetchTokenHourStats(String endpoint, List<String> tokenIds) {
+        try {
+            int first = Math.min(5000, Math.max(50, tokenIds.size() * 24));
+            String q = """
+                query TokenHourStats($tokenIds: [Bytes!]!, $first: Int!) {
+                  rows: tokenHourDatas(
+                    first: $first
+                    orderBy: periodStartUnix
+                    orderDirection: desc
+                    where: { token_in: $tokenIds }
+                  ) {
+                    periodStartUnix
+                    open
+                    close
+                    volumeUSD
+                    token { id }
+                  }
+                }
+                """;
+
+            JsonNode data = subgraphClient.query(endpoint, q, Map.of("tokenIds", tokenIds, "first", first));
+            JsonNode rows = data == null ? null : data.get("rows");
+            if (rows == null || !rows.isArray()) return Map.of();
+
+            Map<String, HourStats> out = new HashMap<>();
+            for (JsonNode n : rows) {
+                JsonNode token = n.get("token");
+                String id = token != null && token.hasNonNull("id") ? token.get("id").asText("") : "";
+                if (id.isBlank()) continue;
+                String key = id.toLowerCase(Locale.ROOT);
+
+                // rows are globally sorted desc; first occurrence per token is the latest hour.
+                if (out.containsKey(key)) continue;
+
+                out.put(
+                        key,
+                        new HourStats(
+                                n.hasNonNull("periodStartUnix") ? n.get("periodStartUnix").asInt() : null,
+                                parseBigDecimalField(n, "open"),
+                                parseBigDecimalField(n, "close"),
+                                parseBigDecimalField(n, "volumeUSD")
+                        )
+                );
+            }
+
+            Map<String, HourStats> remapped = new HashMap<>();
+            for (String tokenId : tokenIds) {
+                HourStats hs = out.get(tokenId.toLowerCase(Locale.ROOT));
+                if (hs != null) remapped.put(tokenId, hs);
+            }
+            return remapped;
+        } catch (Exception e) {
+            return Map.of();
+        }
     }
 
     private BigDecimal percentChange(BigDecimal base, BigDecimal current) {
@@ -938,6 +989,16 @@ public class QueryResolver {
         return value == null ? BigDecimal.ZERO : value;
     }
 
+    private String safeRedisGet(String key) {
+        try {
+            return redisTemplate.opsForValue().get(key);
+        } catch (Exception e) {
+            // Treat cache failures as cache-miss to avoid breaking GraphQL queries.
+            log.warn("Redis GET failed: key={}, err={}", key, e.getMessage());
+            return null;
+        }
+    }
+
     private String resolveSubgraphEndpoint(String normalizedChainId) {
         if (subgraphProperties == null || subgraphProperties.getChains() == null) return null;
         for (SubgraphProperties.ChainConfig chain : subgraphProperties.getChains()) {
@@ -967,7 +1028,7 @@ public class QueryResolver {
             List<ExploreSeriesPointPayload> series,
             BigDecimal fallbackValueUsd
     ) {
-        if (series == null || series.isEmpty()) return List.of();
+        if (series == null || series.isEmpty()) return synthesizeDailySeries(BigDecimal.ZERO, BigDecimal.ZERO);
         if (series.size() >= 2) return series;
 
         ExploreSeriesPointPayload only = series.get(0);

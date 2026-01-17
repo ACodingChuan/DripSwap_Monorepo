@@ -11,9 +11,9 @@
     "contracts:test": "pnpm --dir apps/contracts test",
     "contracts:deploy": "pnpm --dir apps/contracts run deploy",
     "contracts:fmt": "pnpm --dir apps/contracts fmt",
-    "bff:dev": "cd apps/bff && mvn spring-boot:run",
-    "bff:test": "cd apps/bff && mvn test",
-    "bff:build": "cd apps/bff && mvn -DskipTests package",
+    "bff:dev": "bash -lc 'set -a; [ -f .env ] && source .env; set +a; cd apps/bff && mvn spring-boot:run'",
+    "bff:test": "bash -lc 'set -a; [ -f .env ] && source .env; set +a; cd apps/bff && mvn test'",
+    "bff:build": "bash -lc 'set -a; [ -f .env ] && source .env; set +a; cd apps/bff && mvn -DskipTests package'",
     "subgraph:codegen": "pnpm --dir apps/subgraph/sepolia run codegen",
     "subgraph:deploy": "pnpm --dir apps/subgraph/sepolia run deploy",
     "subgraph:build": "pnpm --dir apps/subgraph/sepolia run build",
@@ -23,5 +23,7 @@
     "lint:all": "pnpm --dir apps/frontend lint",
     "format:all": "pnpm --dir apps/frontend format && pnpm --dir apps/contracts fmt"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "baseline-browser-mapping": "^2.9.14"
+  }
 }

@@ -43,7 +43,7 @@ type Query {
   exploreStats(chainId: String!, days: Int): ExploreStatsPayload!
 
   """Explore tokens list for a chain (MVP)."""
-  exploreTokens(chainId: String!, limit: Int, search: String): [ExploreTokenRow!]!
+  exploreTokens(chainId: String!, limit: Int, search: String, sort: ExploreTokenSort): [ExploreTokenRow!]!
 
   """Token details header data (MVP)."""
   tokenDetails(chainId: String!, tokenAddress: String!): TokenDetails
@@ -254,6 +254,16 @@ type ExploreTokenRow {
   
   """Previous day data for 1d change calculation (field resolver)"""
   previousDayData: TokenDayData
+}
+
+"""Sort options for Explore tokens query (v1)."""
+enum ExploreTokenSort {
+  VOLUME_24H_DESC
+  TVL_DESC
+  PRICE_DESC
+  FDV_DESC
+  CHANGE_1H_DESC
+  CHANGE_1D_DESC
 }
 
 """Bundle entity for ETH price tracking"""

@@ -21,11 +21,13 @@
 
 ---
 
-## 1. MVP-1：统一数据契约（先定“前端需要什么”）
+## 1. MVP-1：契约冻结 + Goldsky 读路径（合并原 MVP-1 + MVP-2）
 
-**目标**：冻结 P0 的 BFF GraphQL query/返回字段（不是实现），让后续开发都围绕同一契约推进。
+**目标**：在同一个阶段同时完成：
+- 冻结 P0 的 BFF GraphQL 契约（query/type/口径/边界/错误策略）
+- 落地 BFF 的 Goldsky 读路径（含 Redis 缓存），让现有前端页面可跑
 
-**要做的设计产物**
+### 1.1 契约（PRD）
 - `Explore`：
   - `exploreStats(chainId, days)`
   - `exploreTokens(chainId, limit, search, sort?)`
@@ -41,33 +43,34 @@
   - `poolPriceCandles(chainId, pairAddress, interval, from, to)`
   - `poolTransactions(chainId, pairAddress, limit)`
 
-**验收标准**
-- 前端页面能够只依赖上述 query 完成渲染（不再需要临时 mock 字段/硬编码）。
+### 1.2 工程（BFF：Goldsky + Redis）
+读路径统一为：**Goldsky →（派生/聚合）→ Redis 缓存 → 前端**，并保留降级/兜底策略（如 list 返回 `[]`）。
 
----
+工程交付建议拆分：
+- `GoldskyEndpointRouter`：`chainId -> endpoint`
+- `GoldskyGraphqlClient`：统一超时、重试、错误归一化
+- `SubgraphQueries`：集中维护查询语句（避免散落在 resolver）
+- `SubgraphMappers`：派生字段（priceUsd、fees24hUsd、change1h/1d、apr…）
 
-## 2. MVP-2：BFF 读路径迁移到 Goldsky（可跑起来的第一版）
-
-**目标**：BFF 不再依赖“同步入库”的旧链路，改成 **Goldsky →（派生/聚合）→ Redis 缓存 → 前端**。
-
-**要做的工程交付**
-- 新增/改造 BFF 数据层：
-  - `GoldskyEndpointRouter`：`chainId -> endpoint`
-  - `GoldskyGraphqlClient`：统一超时、重试、错误归一化
-  - `SubgraphQueries`：集中维护查询语句（避免散落在 resolver）
-  - `SubgraphMappers`：派生字段（priceUsd、fees24hUsd、change1h/1d、apr…）
+实现优先级（先跑起来，再补齐新增页面）：
 - 先完成“已被前端使用的” query 的 Goldsky 实现：
   - `exploreStats`、`exploreTokens`、`recentTransactions`
   - `tokenDetails`、`tokenPriceCandles`、`tokenPools`、`tokenTransactions`
+- `explorePools/poolDetails/pool*` 的实现放到后续（见 MVP-3）
 
-**验收标准**
+### 1.3 验收标准
+- GraphQL schema/字段/语义与 PRD 一致，前端不再需要临时 mock 字段/硬编码
 - 本地起 `apps/bff` + `apps/frontend`：
-  - Explore Tokens/Transactions + Token Details 页面能从 Goldsky 拉数据正常展示。
-  - 关闭/移除旧 DB 依赖后仍可工作（至少上述页面不报错）。
+  - Explore（Stats/Tokens/Transactions）可从 Goldsky 拉数据并展示
+  - Token Details（Details/Candles/Pools/Tx）可从 Goldsky 拉数据并展示
+
+**范围边界（与 PRD 6.x 对齐）**
+- MVP-1 必须实现：`exploreStats/exploreTokens/recentTransactions/tokenDetails/tokenPriceCandles/tokenPools/tokenTransactions`
+- MVP-1 仅冻结契约，允许占位返回：`explorePools/poolDetails/poolPriceCandles/poolTransactions`（完整实现放到 MVP-3）
 
 ---
 
-## 3. MVP-3：最小 Pipeline（Entity 增量 → Webhook → 失效缓存）
+## 2. MVP-2：最小 Pipeline（Entity 增量 → Webhook → 失效缓存）
 
 **目标**：让 Explore/Details 的缓存不用“纯 TTL 碰运气”，并为后续 SSE/实时榜单打基础。
 
@@ -95,7 +98,7 @@
 
 ---
 
-## 4. MVP-4：Explore Pools + Pool Details（读功能闭环）
+## 3. MVP-3：Explore Pools + Pool Details（读功能闭环）
 
 **目标**：对齐成品 DEX 的 Explore 体验（tokens/pools/tx 三个 tab 都可用），并补齐池子详情页。
 
@@ -113,7 +116,7 @@
 
 ---
 
-## 5. MVP-5：V2 Add/Remove Liquidity（写功能闭环）
+## 4. MVP-4：V2 Add/Remove Liquidity（写功能闭环）
 
 **目标**：完成“提供/移除流动性”的链上交易闭环（Uniswap V2 Router）。
 
@@ -134,7 +137,7 @@
 
 ---
 
-## 6. MVP-6：Faucet（最短路径可用）
+## 5. MVP-5：Faucet（最短路径可用）
 
 **目标**：让新用户能完成“领币 → Swap/LP”的测试网闭环。
 
@@ -149,7 +152,7 @@
 
 ---
 
-## 7. 何时做“大 sink”（Postgres/队列/对象存储）？
+## 6. 何时做“大 sink”（Postgres/队列/对象存储）？
 
 触发条件（满足任意 1 条即可启动 P2 设计）：
 - Goldsky QPS/费用不可接受（Top N query 高峰打爆）
@@ -161,4 +164,3 @@
 - sink 目标（Postgres vs ClickHouse vs 对象存储）
 - 事件模型（规范化事实表 + 维表）
 - 回填与重放机制
-

@@ -100,7 +100,7 @@ export function ExploreProtocolStats() {
       if (!params[0]?.data) return '';
       const [ts, value] = params[0].data;
       updateText(volumeIds.value, formatUSD(value));
-      updateText(volumeIds.date, format(new Date(ts), 'dd MMM yyyy'));
+      updateText(volumeIds.date, format(new Date(ts), 'MMM d'));
       updateText(volumeIds.v2, formatUSD(value));
       return '';
     },

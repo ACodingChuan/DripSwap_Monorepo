@@ -50,7 +50,7 @@
   - `TokenDayData`/`UniswapDayData` 作为长期序列来源更可靠（不应假设无限 minute/hour 历史可用）。
 
 - 当前线上 Goldsky GraphQL 端点（用户提供）：
-  - Sepolia：`https://api.goldsky.com/api/public/project_cmjbktp0056ic01yj30ya4t7q/subgraphs/dripswap-v2-sepolia/1.0.5/gn`
+  - Sepolia：`https://api.goldsky.com/api/public/project_cmke483ckgziz01w9gr6cb0we/subgraphs/dripswap-v2-sepolia/1.0.5/gn`
   - Scroll Sepolia：`https://api.goldsky.com/api/public/project_cmjbktp0056ic01yj30ya4t7q/subgraphs/dripswap-v2-scroll-sepolia/1.0.5/gn`
 
 ---
