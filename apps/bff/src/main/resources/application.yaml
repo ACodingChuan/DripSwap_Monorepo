@@ -2,43 +2,6 @@ spring:
   application:
     name: dripswap-bff
 
-  datasource:
-    # New DB mode:
-    # - Postgres host/port are provided via env (.env is sourced by pnpm scripts).
-    # - DB contains two schemas: app (Liquibase/JPA) + goldsky (Goldsky sink tables)
-    # - Use `currentSchema=goldsky,app` so reads prefer Goldsky tables; app schema is optional.
-    # Note: some SSH tunnel setups + Postgres docker exposure will reset on SSL negotiation.
-    # Force plaintext unless you explicitly override via BFF_DB_URL.
-    url: ${BFF_DB_URL:jdbc:postgresql://${BFF_DB_HOST}:${BFF_DB_PORT}/${BFF_DB_NAME:${APP_DB}}?currentSchema=${BFF_DB_SCHEMAS:goldsky,app}&sslmode=${BFF_DB_SSLMODE:disable}}
-    username: ${BFF_DB_USER:${APP_DB_USER:app}}
-    password: ${BFF_DB_PASSWORD:${APP_DB_PASSWORD:}}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      # Helpful when the autossh tunnel isn't ready yet; avoid immediate fail-fast.
-      initialization-fail-timeout: ${BFF_DB_INIT_FAIL_TIMEOUT:0}
-      connection-timeout: ${BFF_DB_CONNECTION_TIMEOUT_MS:5000}
-      validation-timeout: ${BFF_DB_VALIDATION_TIMEOUT_MS:2000}
-      maximum-pool-size: ${BFF_DB_POOL_MAX:10}
-      minimum-idle: ${BFF_DB_POOL_MIN:0}
-
-  jpa:
-    hibernate:
-      ddl-auto: none
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        # Allow the app to boot even if the autossh tunnel is not ready yet.
-        # (All ids are provided by subgraph, no sequences needed.)
-        boot:
-          allow_jdbc_metadata_access: ${BFF_HIBERNATE_ALLOW_JDBC_METADATA:false}
-
-  liquibase:
-    # Keep Liquibase enabled, but use an empty changelog so it only manages its own bookkeeping tables.
-    enabled: ${BFF_LIQUIBASE_ENABLED:true}
-    change-log: classpath:db/changelog/db.changelog-master.xml
-    default-schema: ${BFF_DB_SCHEMA_APP:app}
-    liquibase-schema: ${BFF_DB_SCHEMA_APP:app}
-
   data:
     redis:
       host: ${BFF_REDIS_HOST:localhost}
@@ -70,3 +33,4 @@ subgraph:
       enabled: true
       endpoint: ${GOLDSKY_SCROLL_SEPOLIA_ENDPOINT:https://api.goldsky.com/api/public/project_cmjbktp0056ic01yj30ya4t7q/subgraphs/dripswap-v2-scroll-sepolia/1.0.5/gn}
       start-block: 0
+
