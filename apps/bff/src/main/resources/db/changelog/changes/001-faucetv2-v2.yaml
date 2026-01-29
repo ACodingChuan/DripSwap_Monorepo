@@ -1,0 +1,351 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-faucetv2-v2
+      author: codex
+      changes:
+        - createTable:
+            tableName: faucet_chain_config
+            columns:
+              - column:
+                  name: chain_id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: paused
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_daily_max
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_cooldown_seconds
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: claim_deadline_seconds
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ip_daily_max
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: eip712_name
+                  type: varchar(64)
+              - column:
+                  name: eip712_version
+                  type: varchar(32)
+              - column:
+                  name: signer_address
+                  type: varchar(64)
+              - column:
+                  name: relayer_address
+                  type: varchar(64)
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: faucet_token_config
+            columns:
+              - column:
+                  name: chain_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_address
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: symbol
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: single_amount_raw
+                  type: numeric(78,0)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: whitelist
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: vault_balance_raw
+                  type: numeric(78,0)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - addPrimaryKey:
+            tableName: faucet_token_config
+            columnNames: chain_id, token_address
+            constraintName: pk_faucet_token_config
+
+        - createIndex:
+            tableName: faucet_token_config
+            indexName: idx_faucet_token_config_chain_symbol
+            columns:
+              - column:
+                  name: chain_id
+              - column:
+                  name: symbol
+
+        - createTable:
+            tableName: faucet_token_daily_issued
+            columns:
+              - column:
+                  name: chain_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_address
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: day
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: issued_raw
+                  type: numeric(78,0)
+                  constraints:
+                    nullable: false
+
+        - addPrimaryKey:
+            tableName: faucet_token_daily_issued
+            columnNames: chain_id, token_address, day
+            constraintName: pk_faucet_token_daily_issued
+
+        - createTable:
+            tableName: faucet_user_daily
+            columns:
+              - column:
+                  name: chain_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_address
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: day
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: claim_count
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_claim_at
+                  type: timestamptz
+
+        - addPrimaryKey:
+            tableName: faucet_user_daily
+            columnNames: chain_id, user_address, day
+            constraintName: pk_faucet_user_daily
+
+        - createTable:
+            tableName: faucet_ip_daily
+            columns:
+              - column:
+                  name: chain_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ip_hash
+                  type: varchar(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: day
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: claim_count
+                  type: integer
+                  constraints:
+                    nullable: false
+
+        - addPrimaryKey:
+            tableName: faucet_ip_daily
+            columnNames: chain_id, ip_hash, day
+            constraintName: pk_faucet_ip_daily
+
+        - createTable:
+            tableName: faucet_blacklist
+            columns:
+              - column:
+                  name: id
+                  type: bigserial
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: chain_id
+                  type: bigint
+              - column:
+                  name: user_address
+                  type: varchar(64)
+              - column:
+                  name: ip_hash
+                  type: varchar(128)
+              - column:
+                  name: active
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: faucet_claim_request
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: chain_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_address
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_address
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount_raw
+                  type: numeric(78,0)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: day
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: claim_nonce
+                  type: numeric(78,0)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: idempotency_key
+                  type: varchar(128)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: device_id
+                  type: varchar(128)
+              - column:
+                  name: ip_hash
+                  type: varchar(128)
+              - column:
+                  name: status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tx_hash
+                  type: varchar(96)
+              - column:
+                  name: check_at
+                  type: timestamptz
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            tableName: faucet_claim_request
+            columnNames: idempotency_key
+            constraintName: uk_faucet_claim_request_idempotency_key
+
+        - createIndex:
+            tableName: faucet_claim_request
+            indexName: idx_faucet_claim_request_chain_user_created
+            columns:
+              - column:
+                  name: chain_id
+              - column:
+                  name: user_address
+              - column:
+                  name: created_at
+
+        - createIndex:
+            tableName: faucet_claim_request
+            indexName: idx_faucet_claim_request_chain_status_created
+            columns:
+              - column:
+                  name: chain_id
+              - column:
+                  name: status
+              - column:
+                  name: created_at
+
+        - createIndex:
+            tableName: faucet_claim_request
+            indexName: idx_faucet_claim_request_tx_hash
+            columns:
+              - column:
+                  name: tx_hash
+
+        - createIndex:
+            tableName: faucet_claim_request
+            indexName: idx_faucet_claim_request_check_at
+            columns:
+              - column:
+                  name: check_at

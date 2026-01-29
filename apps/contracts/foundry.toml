@@ -9,18 +9,14 @@ optimizer_runs = 2000
 via_ir = true
 auto_detect_solc = true
 
-# RPC 配置：增加重试和延迟以避免速率限制
-eth_rpc_url = "${RPC_URL}"
-retries = 15
-retry_delay = 8000  # 8 秒延迟
-timeout = 60000     # 60 秒超时
-# 降低并发请求数以避免速率限制
-sender = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+# 注意：默认 profile 不依赖 RPC，这样 `forge test` 在未配置环境变量时也能跑通。
+# 需要跑 fork / broadcast 时，用：FOUNDRY_PROFILE=rpc
 # 启用额外输出以便提取ABI
 extra_output = ["abi"]
 # 格式化JSON输出，使其更易读
 pretty_json = true
-post_compile = "npm run extract-abi"
+# 注意：测试/本地编译不强制跑 ABI 提取脚本，避免影响 `forge test`。
+# 需要提取 ABI 时，手动运行：`npm run extract-abi` 或 `make extract-abi`。
 remappings = [
     "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
@@ -38,13 +34,23 @@ remappings = [
     "forge-std/=lib/forge-std/src/"
 ]
 
-# 允许读取编译输出目录
+# 允许读取/写入必要目录（脚本写 deployments、读 configs 等）
 fs_permissions = [
     { access = "read", path = "./out-v2core" },
     { access = "read", path = "./out-v2router" },
     { access = "read-write", path = "./deployments" },
     { access = "read", path = "./configs" }
 ]
+
+# ===== RPC/Fork Profile（需要你提供 RPC_URL）=====
+[profile.rpc]
+# RPC 配置：增加重试和延迟以避免速率限制
+eth_rpc_url = "${RPC_URL}"
+retries = 15
+retry_delay = 8000  # 8 秒延迟
+timeout = 60000     # 60 秒超时
+# 降低并发请求数以避免速率限制
+sender = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
 
 # ABI配置说明:
 # 使用 'make extract-abi' 或 'npm run extract-abi' 来提取ABI文件到 ./abi 目录

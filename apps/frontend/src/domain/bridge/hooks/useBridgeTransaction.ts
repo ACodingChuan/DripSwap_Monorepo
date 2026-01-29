@@ -1,15 +1,42 @@
+import { useMemo, useState } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { BRIDGE_ABI } from '@/shared/abis/bridge';
 import { BRIDGE_CONFIG } from '../config';
 import { Address } from 'viem';
+import { decodeEventLog } from 'viem';
 import { PermitBatchSignature } from './usePermit2Sign';
 
 export function useBridgeTransaction() {
   const { writeContractAsync, data: hash, isPending, error } = useWriteContract();
+  const [lastBridgeAddress, setLastBridgeAddress] = useState<Address | null>(null);
 
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  const { data: receipt, isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
+    pollingInterval: 6000,
   });
+
+  const messageId = useMemo(() => {
+    if (!receipt || !lastBridgeAddress) return null;
+    const bridgeAddr = lastBridgeAddress.toLowerCase();
+    for (const log of receipt.logs ?? []) {
+      // Only decode logs emitted by our Bridge contract
+      if (!log.address || log.address.toLowerCase() !== bridgeAddr) continue;
+      try {
+        const decoded = decodeEventLog({
+          abi: BRIDGE_ABI,
+          data: log.data,
+          topics: log.topics,
+        });
+        if (decoded.eventName === 'TransferInitiated') {
+          const mid = (decoded.args as any).messageId as `0x${string}` | undefined;
+          if (mid) return mid;
+        }
+      } catch {
+        // ignore non-matching events
+      }
+    }
+    return null;
+  }, [receipt, lastBridgeAddress]);
 
   const sendToken = async (
     chainId: number,
@@ -26,6 +53,7 @@ export function useBridgeTransaction() {
 
     if (!bridgeAddress) throw new Error('Bridge address not found for chain');
     if (!dstSelector) throw new Error('Destination chain selector not found');
+    setLastBridgeAddress(bridgeAddress as Address);
 
     // Calculate Value:
     // If paying in Native (payInLink = false), value = fee + buffer + serviceFee
@@ -63,6 +91,8 @@ export function useBridgeTransaction() {
   return {
     sendToken,
     hash,
+    receipt,
+    messageId,
     isPending,
     isConfirming,
     isConfirmed,

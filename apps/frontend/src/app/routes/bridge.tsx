@@ -1,5 +1,5 @@
 import { createRoute } from '@tanstack/react-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAccount, useChainId, useSwitchChain } from 'wagmi';
 import { parseUnits, formatUnits, Address } from 'viem';
 
@@ -25,7 +25,7 @@ import {
 } from '@/shared/ui';
 import { ArrowRight } from '@/shared/icons';
 import { rootRoute } from './root';
-import { getAllTokens, getChainConfig, CCIP_CHAINS } from '@/contracts';
+import { getAllTokens, CCIP_CHAINS } from '@/contracts';
 import { BRIDGE_CONFIG } from '@/domain/bridge/config';
 
 // Import Domain Hooks
@@ -33,6 +33,11 @@ import { useBridgeQuote } from '@/domain/bridge/hooks/useBridgeQuote';
 import { usePermit2Allowance, useApprovePermit2 } from '@/domain/bridge/hooks/useApprove';
 import { usePermit2Sign } from '@/domain/bridge/hooks/usePermit2Sign';
 import { useBridgeTransaction } from '@/domain/bridge/hooks/useBridgeTransaction';
+import {
+  postCcipBridgeRecord,
+  searchCcipBridgeRecords,
+  type CcipBridgeRecordResponse,
+} from '@/app/services/ccip-bridge-record-service';
 
 const BridgePage = () => {
   const headingRef = usePageFocus<HTMLHeadingElement>();
@@ -77,8 +82,9 @@ const BridgePage = () => {
   );
 
   // --- 3. Hooks Integration ---
-  const fromChainConfig = getChainConfig(fromNetworkId);
-  const toChainConfig = getChainConfig(toNetworkId);
+  // Keep configs available for future UI needs (e.g. explorer URLs); currently unused.
+  // const fromChainConfig = getChainConfig(fromNetworkId);
+  // const toChainConfig = getChainConfig(toNetworkId);
 
   // Amount Parsing
   const amountBigInt = useMemo(() => {
@@ -131,7 +137,12 @@ const BridgePage = () => {
     sendToken,
     isPending: isBridgePending,
     isConfirming: isBridgeConfirming,
+    messageId,
+    hash: bridgeTxHash,
   } = useBridgeTransaction();
+
+  const [recentRecords, setRecentRecords] = useState<CcipBridgeRecordResponse[]>([]);
+  const lastPostedMessageIdRef = useRef<string | null>(null);
 
   // --- 4. Actions ---
   const handleSwitchNetwork = () => {
@@ -195,6 +206,59 @@ const BridgePage = () => {
     } catch (e) {
       console.error(e);
       toast('Bridge Failed', { description: (e as Error).message });
+    }
+  };
+
+  // After the tx is confirmed, we can extract messageId from the TransferInitiated event and store it in backend.
+  useEffect(() => {
+    if (!messageId) return;
+    if (!address) return;
+    if (!selectedToken) return;
+    if (lastPostedMessageIdRef.current === messageId) return;
+    lastPostedMessageIdRef.current = messageId;
+
+    (async () => {
+      try {
+        const saved = await postCcipBridgeRecord({
+          messageId,
+          userAddress: address,
+          tokenSymbol: selectedToken.symbol,
+          tokenAddress: selectedToken.address,
+          fromChainId: fromNetworkId,
+          toChainId: toNetworkId,
+          sourceTxHash: bridgeTxHash ?? null,
+        });
+        setRecentRecords((prev) => [saved, ...prev].slice(0, 10));
+        toast('CCIP message recorded', { description: `messageId ${messageId.slice(0, 10)}...` });
+      } catch (e: any) {
+        toast('Failed to record CCIP message', { description: e?.message ?? 'Unknown error' });
+      }
+    })();
+  }, [messageId, address, selectedToken, fromNetworkId, toNetworkId, bridgeTxHash]);
+
+  // --- 4.1 Query helpers ---
+  const [query, setQuery] = useState<string>('');
+  const [queryResults, setQueryResults] = useState<CcipBridgeRecordResponse[]>([]);
+  const [querying, setQuerying] = useState(false);
+
+  useEffect(() => {
+    if (address && !query) setQuery(address);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]);
+
+  const ccipExplorerUrl = (mid: string) => `https://ccip.chain.link/msg/${mid}`;
+
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    setQuerying(true);
+    try {
+      const rows = await searchCcipBridgeRecords(query.trim(), 20);
+      setQueryResults(rows);
+      toast('Loaded records', { description: `Found ${rows.length}` });
+    } catch (e: any) {
+      toast('Query failed', { description: e?.message ?? 'Unknown error' });
+    } finally {
+      setQuerying(false);
     }
   };
 
@@ -304,7 +368,7 @@ const BridgePage = () => {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[720px] flex-col gap-[var(--space-xl)] px-6 py-[var(--space-2xl)]">
+    <main className="mx-auto flex min-h-screen w-full max-w-[1280px] flex-col gap-[var(--space-xl)] px-6 py-[var(--space-2xl)]">
       <header className="flex flex-col gap-[var(--space-xs)] text-center">
         <Badge variant="outline" className="self-center">
           Cross-Chain Bridge
@@ -315,14 +379,15 @@ const BridgePage = () => {
         <p className="text-muted-foreground">Transfer tokens securely via Chainlink CCIP.</p>
       </header>
 
-      <Card className="mx-auto w-full max-w-[480px]">
-        <form onSubmit={handleBridge}>
-          <CardHeader>
-            <CardTitle>Bridge</CardTitle>
-            <CardDescription>Select source and destination chains.</CardDescription>
-          </CardHeader>
+      <div className="grid w-full grid-cols-1 gap-8 md:grid-cols-[1.25fr_1fr]">
+        <Card className="w-full">
+          <form onSubmit={handleBridge}>
+            <CardHeader>
+              <CardTitle>Bridge</CardTitle>
+              <CardDescription>Select source and destination chains.</CardDescription>
+            </CardHeader>
 
-          <CardContent className="flex flex-col gap-6">
+            <CardContent className="flex flex-col gap-6">
             {/* Network Selection */}
             <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
               <div className="space-y-2">
@@ -434,11 +499,97 @@ const BridgePage = () => {
               )}
             </div>
 
-            {/* Action Button */}
-            <div className="pt-4">{renderActionButton()}</div>
-          </CardContent>
-        </form>
-      </Card>
+              {/* Action Button */}
+              <div className="pt-4">{renderActionButton()}</div>
+            </CardContent>
+          </form>
+        </Card>
+
+        <div className="flex w-full flex-col gap-6">
+          {/* Query (single input) */}
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Query Bridge Records</CardTitle>
+              <CardDescription>Input userAddress or messageId.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <Label>Query</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="0x..."
+                    className="flex-1"
+                  />
+                  <Button type="button" onClick={handleSearch} disabled={querying}>
+                    Search
+                  </Button>
+                </div>
+              </div>
+
+              {queryResults.length > 0 ? (
+                <div className="flex flex-col gap-2 pt-2">
+                  {queryResults.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className="flex items-center justify-between rounded-md border px-3 py-2 text-left"
+                      onClick={() => window.open(ccipExplorerUrl(r.messageId), '_blank', 'noopener,noreferrer')}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">
+                          {r.tokenSymbol} {r.fromChainId} → {r.toChainId}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {r.messageId.slice(0, 14)}...{r.messageId.slice(-10)}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Open CCIP</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No results.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent (session) */}
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Recent (This Session)</CardTitle>
+              <CardDescription>Auto-added after your tx is confirmed.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {recentRecords.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No records yet.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {recentRecords.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className="flex items-center justify-between rounded-md border px-3 py-2 text-left"
+                      onClick={() => window.open(ccipExplorerUrl(r.messageId), '_blank', 'noopener,noreferrer')}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium">
+                          {r.tokenSymbol} {r.fromChainId} → {r.toChainId}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {r.messageId.slice(0, 14)}...{r.messageId.slice(-10)}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">Open CCIP</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </main>
   );
 };

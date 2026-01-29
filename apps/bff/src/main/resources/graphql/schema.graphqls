@@ -5,12 +5,42 @@ schema {
 """Custom scalar for BigDecimal values"""
 scalar BigDecimal
 
+"""Custom scalar for Long values"""
+scalar Long
+
 type Query {
   """Explore protocol stats for a chain (MVP-1 6.2)."""
   exploreStats(chainId: String!, days: Int): ExploreStatsPayload!
 
   """Explore tokens list for a chain (MVP-1 6.3)."""
   exploreTokens(chainId: String!, limit: Int, search: String, sort: ExploreTokenSort): [ExploreTokenRow!]!
+
+  """Explore pools list for a chain (MVP-1 6.4)."""
+  explorePools(chainId: String!, limit: Int, search: String, sort: ExplorePoolSort): [ExplorePoolRow!]!
+
+  """Explore recent transactions (MVP-1 6.5)."""
+  recentTransactions(chainId: String!, limit: Int, types: [ExploreTxType!]): [TransactionPayload!]!
+
+  """Token details (MVP-1 6.6)."""
+  tokenDetails(chainId: String!, tokenAddress: String!): TokenDetails
+
+  """Token price candles (MVP-1 6.6 - chart)."""
+  tokenPriceCandles(chainId: String!, tokenAddress: String!, interval: TokenChartInterval!, from: Int!, to: Int!): [TokenOhlc!]!
+
+  """Token pools list (MVP-1 6.6 - pools table)."""
+  tokenPools(chainId: String!, tokenAddress: String!, limit: Int): [TokenPoolRow!]!
+
+  """Token-related transactions list (MVP-1 6.6 - transactions table)."""
+  tokenTransactions(chainId: String!, tokenAddress: String!, limit: Int): [TokenTransactionRow!]!
+
+  """Pool details (MVP-1 6.9)."""
+  poolDetails(chainId: String!, pairAddress: String!): PoolDetails
+
+  """Pool candles (MVP-1 6.10)."""
+  poolPriceCandles(chainId: String!, pairAddress: String!, interval: PoolChartInterval!, from: Int!, to: Int!): [PoolOhlc!]!
+
+  """Pool transactions (MVP-1 6.10)."""
+  poolTransactions(chainId: String!, pairAddress: String!, limit: Int, types: [ExploreTxType!]): [PoolTransactionRow!]!
 }
 
 """Explore protocol stats payload"""
@@ -53,3 +83,156 @@ enum ExploreTokenSort {
   CHANGE_1D_DESC
 }
 
+"""Sort options for Explore pools query (v1)."""
+enum ExplorePoolSort {
+  TVL_DESC
+  VOLUME_24H_DESC
+  TX_24H_DESC
+  FEES_24H_DESC
+  APR_DESC
+}
+
+"""Explore transaction types."""
+enum ExploreTxType {
+  SWAP
+  MINT
+  BURN
+}
+
+"""Recent transaction payload (v1)."""
+type TransactionPayload {
+  id: ID!
+  chainId: String!
+  blockNumber: Long!
+  txHash: String!
+  decodedName: String
+  decodedData: String
+  status: String!
+  createdAt: String!
+}
+
+"""Token details payload (v1)."""
+type TokenDetails {
+  chainId: String!
+  address: String!
+  symbol: String!
+  name: String!
+  decimals: Int!
+  priceUsd: BigDecimal!
+  change24hPct: BigDecimal
+  tvlUsd: BigDecimal!
+  volume24hUsd: BigDecimal!
+  fdvUsd: BigDecimal
+}
+
+"""Lightweight token reference used across Explore/Details views."""
+type TokenLite {
+  address: String!
+  symbol: String!
+  name: String!
+}
+
+"""Time bucket for token chart queries."""
+enum TokenChartInterval {
+  MINUTE
+  HOUR
+  DAY
+}
+
+"""Time bucket for pool chart queries."""
+enum PoolChartInterval {
+  HOUR
+  DAY
+}
+
+"""OHLC candle for token price chart."""
+type TokenOhlc {
+  timestamp: Int!
+  open: BigDecimal!
+  high: BigDecimal!
+  low: BigDecimal!
+  close: BigDecimal!
+  volumeUsd: BigDecimal!
+  tvlUsd: BigDecimal!
+}
+
+"""Token pools table row in Token Details view."""
+type TokenPoolRow {
+  pairAddress: String!
+  tvlUsd: BigDecimal!
+  volumeUsd: BigDecimal!
+  token0: TokenLite!
+  token1: TokenLite!
+}
+
+"""Token transactions row in Token Details view."""
+type TokenTransactionRow {
+  id: ID!
+  timestamp: Int!
+  txHash: String!
+  pairAddress: String!
+  amountUsd: BigDecimal!
+  token0: TokenLite!
+  token1: TokenLite!
+  amount0In: BigDecimal!
+  amount1In: BigDecimal!
+  amount0Out: BigDecimal!
+  amount1Out: BigDecimal!
+}
+
+"""Explore pools table row"""
+type ExplorePoolRow {
+  pairAddress: String!
+  chainId: String!
+  token0: TokenLite!
+  token1: TokenLite!
+
+  tvlUsd: BigDecimal!
+  tvlChange1d: BigDecimal
+
+  volume24hUsd: BigDecimal!
+  volume1wUsd: BigDecimal
+
+  fees24hUsd: BigDecimal!
+  tx24hCount: Int
+
+  apr: BigDecimal
+}
+
+"""Pool details payload (v1 frozen)."""
+type PoolDetails {
+  chainId: String!
+  pairAddress: String!
+  token0: TokenLite!
+  token1: TokenLite!
+
+  tvlUsd: BigDecimal!
+  volume24hUsd: BigDecimal!
+  fees24hUsd: BigDecimal!
+  tx24hCount: Int
+
+  apr: BigDecimal
+  reserve0: BigDecimal
+  reserve1: BigDecimal
+  token0Price: BigDecimal
+  token1Price: BigDecimal
+}
+
+"""Pool OHLC-like candle for liquidity/volume/fees charts."""
+type PoolOhlc {
+  timestamp: Int!
+  tvlUsd: BigDecimal!
+  volumeUsd: BigDecimal!
+  feesUsd: BigDecimal!
+}
+
+"""Pool transaction row (v1 frozen)."""
+type PoolTransactionRow {
+  type: ExploreTxType!
+  timestamp: Long!
+  txHash: String!
+  amountUsd: BigDecimal
+  token0Amount: BigDecimal
+  token1Amount: BigDecimal
+  account: String
+}

@@ -8,7 +8,7 @@ import {
   type MouseEvent,
 } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
-import { useAccount, useSignMessage, useDisconnect, useSwitchChain } from 'wagmi';
+import { useAccount, useSignMessage, useDisconnect, useSwitchChain, useConfig } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { sepolia, scrollSepolia } from 'wagmi/chains';
 
@@ -26,6 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  toast,
 } from '@/shared/ui';
 import { cn } from '@/shared/utils';
 import { Droplet, ChevronDown, Menu, LogOut, Network } from '@/shared/icons';
@@ -40,8 +41,10 @@ const NAV_ITEMS = [
   { label: 'Explore', path: '/explore' },
   {
     label: 'Liquidity',
-    path: '/pools',
-    submenu: [{ label: 'My Liquidity', path: '/pools/mine' }],
+    path: '/pools/mine',
+    submenu: [
+      { label: 'Manage', path: '/pools/mine' },
+    ],
   },
   { label: 'Faucet', path: '/faucet' },
   { label: 'Bridge', path: '/bridge' },
@@ -191,7 +194,9 @@ function LiquidityMenu({ pathname }: { pathname: string }) {
   const menuId = 'nav-liquidity-menu';
   const closeTimer = useRef<number | null>(null);
 
-  const isActive = pathname === '/pools' || pathname.startsWith('/pools/');
+  const isActive =
+    pathname === '/pools' ||
+    pathname.startsWith('/pools/');
 
   useEffect(() => {
     setOpen(false);
@@ -244,7 +249,7 @@ function LiquidityMenu({ pathname }: { pathname: string }) {
         onClick={() => (open ? setOpen(false) : setOpen(true))}
         asChild
       >
-        <Link ref={triggerRef} to="/pools">
+        <Link ref={triggerRef} to="/pools/mine">
           <span className="flex items-center gap-[var(--space-xs)]">
             Liquidity
             <ChevronDown className="size-3" aria-hidden="true" />
@@ -265,7 +270,7 @@ function LiquidityMenu({ pathname }: { pathname: string }) {
       >
         <Button variant="ghost" size="sm" className="w-full justify-start px-2" asChild>
           <Link to="/pools/mine" role="menuitem" onClick={() => setOpen(false)}>
-            My Liquidity
+            Manage
           </Link>
         </Button>
       </div>
@@ -274,18 +279,169 @@ function LiquidityMenu({ pathname }: { pathname: string }) {
 }
 
 function NetworkSwitcher() {
-  const { address, chain: connectedChain } = useAccount();
-  const { disconnect } = useDisconnect();
-  const { switchChain } = useSwitchChain();
+  const { address, chain: connectedChain, connector } = useAccount();
+  const { disconnectAsync } = useDisconnect();
+  const { switchChainAsync } = useSwitchChain();
   const { logout } = useAuthStore();
+  const config = useConfig();
 
-  const handleDisconnect = () => {
-    disconnect();
-    logout();
+  const forceWagmiDisconnect = () => {
+    // Some RainbowKit connectors can return a minimal "wallet details" connector
+    // without a functional `disconnect()` implementation. In that case, we still
+    // want to clear local connection state so UI updates and the app "disconnects".
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('wagmi.store');
+        window.localStorage.removeItem('wagmi.recentConnectorId');
+        if (connector?.id) window.localStorage.setItem(`wagmi.${connector.id}.disconnected`, 'true');
+      }
+    } catch {
+      // ignore storage errors
+    }
+
+    config.setState((x) => ({
+      ...x,
+      connections: new Map(),
+      current: null,
+      status: 'disconnected',
+    }));
   };
 
-  const handleSwitchChain = (targetChainId: number) => {
-    switchChain({ chainId: targetChainId });
+  const handleDisconnect = async () => {
+    try {
+      // Prefer wagmi disconnect, but fall back to clearing local state if connector is misconfigured.
+      await disconnectAsync();
+    } catch (e: any) {
+      const message = e?.shortMessage ?? e?.message ?? 'Unknown error';
+      if (String(message).includes('disconnect is not a function')) {
+        forceWagmiDisconnect();
+      } else {
+        toast('Disconnect failed', { description: message });
+      }
+    } finally {
+      logout();
+    }
+  };
+
+  const handleSwitchChain = async (targetChainId: number) => {
+    const target = SUPPORTED_CHAINS.find((c) => c.id === targetChainId);
+    const chainIdHex = `0x${targetChainId.toString(16)}`;
+    let provider: any = undefined;
+    try {
+      provider = await connector?.getProvider?.();
+    } catch {
+      provider = undefined;
+    }
+
+    // If connector provider is unavailable, try to pick a reasonable global provider.
+    if (!provider?.request && typeof window !== 'undefined') {
+      const eth: any = (window as any).ethereum;
+      if (eth?.providers?.length) {
+        if (connector?.name?.toLowerCase?.().includes('metamask')) {
+          provider = eth.providers.find((p: any) => p?.isMetaMask) ?? eth;
+        } else {
+          provider = eth.providers[0];
+        }
+      } else if (eth?.request) {
+        provider = eth;
+      }
+    }
+
+    // Prefer sending EIP-1193 requests to the *active connector provider* (not window.ethereum),
+    // otherwise multi-wallet environments can route the request to a different wallet.
+    if (provider?.request) {
+      try {
+        await provider.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: chainIdHex }],
+        });
+        return;
+      } catch (e: any) {
+        const code = e?.code;
+        // MetaMask & compatible: 4902 means the chain is not added yet.
+        if (code === 4902 && target) {
+          try {
+            await provider.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: chainIdHex,
+                  chainName: target.name,
+                  rpcUrls: target.rpcUrls?.default?.http ?? [],
+                  nativeCurrency: target.nativeCurrency,
+                  blockExplorerUrls: target.blockExplorers?.default?.url
+                    ? [target.blockExplorers.default.url]
+                    : undefined,
+                },
+              ],
+            });
+            await provider.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: chainIdHex }],
+            });
+            return;
+          } catch (addErr: any) {
+            toast('Add network failed', {
+              description: addErr?.shortMessage ?? addErr?.message ?? 'Unknown error',
+            });
+            return;
+          }
+        }
+        // If wallet rejects or errors, surface it directly instead of falling back to wagmi
+        // (which may throw SwitchChainNotSupportedError for some connectors).
+        toast('Switch network failed', {
+          description: e?.shortMessage ?? e?.message ?? 'Unknown error',
+        });
+        return;
+      }
+    }
+
+    try {
+      await switchChainAsync({ chainId: targetChainId });
+    } catch (e: any) {
+      const code = e?.cause?.code ?? e?.code;
+      // MetaMask: 4902 means the chain is not added yet.
+      if (
+        code === 4902 &&
+        target &&
+        (provider?.request || (typeof window !== 'undefined' && (window as any).ethereum?.request))
+      ) {
+        const fallbackProvider: any = provider?.request ? provider : (window as any).ethereum;
+        try {
+          await fallbackProvider.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: `0x${target.id.toString(16)}`,
+                chainName: target.name,
+                rpcUrls: target.rpcUrls?.default?.http ?? [],
+                nativeCurrency: target.nativeCurrency,
+                blockExplorerUrls: target.blockExplorers?.default?.url
+                  ? [target.blockExplorers.default.url]
+                  : undefined,
+              },
+            ],
+          });
+          await switchChainAsync({ chainId: targetChainId });
+          return;
+        } catch (addErr: any) {
+          toast('Add network failed', {
+            description: addErr?.shortMessage ?? addErr?.message ?? 'Unknown error',
+          });
+          return;
+        }
+      }
+
+      // Common errors:
+      // - chain not added to wallet (MetaMask 4902)
+      // - user rejected request (4001)
+      toast('Switch network failed', {
+        description:
+          e?.shortMessage ??
+          e?.message ??
+          'This wallet does not support programmatic network switching. Please switch in your wallet.',
+      });
+    }
   };
 
   if (!connectedChain || !address) {
@@ -317,7 +473,9 @@ function NetworkSwitcher() {
         {SUPPORTED_CHAINS.map((chain) => (
           <DropdownMenuItem
             key={chain.id}
-            onClick={() => handleSwitchChain(chain.id)}
+            onSelect={(_e) => {
+              void handleSwitchChain(chain.id);
+            }}
             className="cursor-pointer"
           >
             <Network className="mr-2 size-4" />
@@ -328,7 +486,12 @@ function NetworkSwitcher() {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleDisconnect} className="cursor-pointer text-destructive">
+        <DropdownMenuItem
+          onSelect={(_e) => {
+            void handleDisconnect();
+          }}
+          className="cursor-pointer text-destructive"
+        >
           <LogOut className="mr-2 size-4" />
           <span>Disconnect</span>
         </DropdownMenuItem>

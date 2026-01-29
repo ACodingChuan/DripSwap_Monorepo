@@ -46,6 +46,7 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // === 测试用可铸造 Token（支持自定义小数）===
 // 语法点：
@@ -478,6 +479,29 @@ contract FaucetV2Test is Test {
         bytes memory wrongSig = _signClaimWithKey(invalidReq, fakePk);
         vm.expectRevert(abi.encodeWithSelector(FaucetV2.INVALID_SIGNER.selector, fakeSigner));
         _relayedClaim(invalidReq, wrongSig);
+    }
+
+    // 测试：EIP-712 domain 不一致（name/version/verifyingContract/chainId 任一项不同）会导致验签失败
+    // 场景：后端签名机配置错了 name/version，或者拿错了合约地址去签名。
+    function testClaimWithSigRejectsWrongEip712Domain() public {
+        // 构造一份“本合约正确的请求”
+        FaucetV2.ClaimReq memory req = _buildClaim(1, 6);
+
+        // 用另一个 FaucetV2（不同 domain）来计算 digest 并签名
+        // 注意：这里只是为了制造“签名域不一致”的签名；真正校验发生在 faucet.claimWithSig()
+        FaucetV2Harness otherDomain =
+            new FaucetV2Harness(ADMIN, TREASURY, SIGNER, "WrongName", "2.0"); // name_ 不同即可
+        bytes32 wrongDigest = otherDomain.hashRequest(req);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_PK, wrongDigest);
+        bytes memory sig = abi.encodePacked(r, s, v);
+
+        // 在正确的 faucet 上验签：应当失败（recovered 地址不会是授权 signer）
+        // 说明：有些 foundry 版本对 `expectRevert(bytes4)` 会做“全量 revert data 匹配”，
+        // 因此这里计算 recovered 并用完整 error data 断言，避免版本差异导致误判。
+        bytes32 correctDigest = faucet.hashRequest(req);
+        address recovered = ECDSA.recover(correctDigest, sig);
+        vm.expectRevert(abi.encodeWithSelector(FaucetV2.INVALID_SIGNER.selector, recovered));
+        _relayedClaim(req, sig);
     }
 
     // 测试：先命中日上限，再验证 VAULT_LOW（取消上限以便走到余额检查）

@@ -2,6 +2,26 @@ spring:
   application:
     name: dripswap-bff
 
+  datasource:
+    # Prefer explicit JDBC URL; otherwise fall back to the existing monorepo .env convention.
+    url: ${BFF_DB_URL:jdbc:postgresql://${BFF_DB_HOST:localhost}:${BFF_DB_PORT:5432}/${APP_DB:dripswap}}
+    username: ${BFF_DB_USER:${APP_DB_USER:dripswap}}
+    password: ${BFF_DB_PASSWORD:${APP_DB_PASSWORD:dripswap}}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
   data:
     redis:
       host: ${BFF_REDIS_HOST:localhost}
@@ -20,6 +40,46 @@ spring:
 server:
   port: ${BFF_SERVER_PORT:8080}
 
+mybatis:
+  mapper-locations: classpath*:mybatis/*.xml
+  type-handlers-package: com.dripswap.bff.repository.typehandler
+
+faucetv2:
+  # Use the same P0-0 calibration file as contracts. In production, ship/mount this file next to the jar.
+  calibration-path: ${FAUCETV2_CALIBRATION_PATH:../contracts/configs/faucetv2-calibration-v1.json}
+  ip-hash-salt: ${FAUCETV2_IP_HASH_SALT:}
+  wallet-daily-max-single: ${FAUCETV2_WALLET_DAILY_MAX_SINGLE:3}
+  wallet-cooldown-seconds: ${FAUCETV2_WALLET_COOLDOWN_SECONDS:600}
+  claim-deadline-seconds: ${FAUCETV2_CLAIM_DEADLINE_SECONDS:600}
+  ip-hourly-max-claims: ${FAUCETV2_IP_HOURLY_MAX_CLAIMS:9}
+  ip-daily-max-claims: ${FAUCETV2_IP_DAILY_MAX_CLAIMS:45}
+  ip-daily-max-unique-wallets: ${FAUCETV2_IP_DAILY_MAX_UNIQUE_WALLETS:5}
+  captcha:
+    enabled: ${FAUCETV2_CAPTCHA_ENABLED:true}
+    secret-key: ${FAUCETV2_CAPTCHA_SECRET_KEY:}
+    ttl-seconds: ${FAUCETV2_CAPTCHA_TTL_SECONDS:300}
+    length: ${FAUCETV2_CAPTCHA_LENGTH:5}
+  cache:
+    relayer-balance-ttl-seconds: ${FAUCETV2_RELAYER_BALANCE_TTL_SECONDS:86400}
+    state-ttl-seconds: ${FAUCETV2_STATE_TTL_SECONDS:259200}
+  chains:
+    - chain-id: 11155111
+      enabled: true
+      paused: ${FAUCETV2_SEPOLIA_PAUSED:false}
+      rpc-url: ${BFF_SEPOLIA_RPC_HTTP:${GRAPH_SEPOLIA_RPC:${RPC_URL:}}}
+      faucet-address: ${FAUCETV2_SEPOLIA_ADDRESS:0xD9F31b482E843bb06185832ad0Eb8b2A4e7098F9}
+      address-book-path: ${FAUCETV2_SEPOLIA_ADDRESS_BOOK:../contracts/deployments/sepolia/address_book.md}
+      signer-private-key: ${FAUCET_SIGNER_PK:}
+      relayer-private-key: ${FAUCET_RELAYER_PK:}
+    - chain-id: 534351
+      enabled: true
+      paused: ${FAUCETV2_SCROLL_SEPOLIA_PAUSED:false}
+      rpc-url: ${BFF_SCROLL_SEPOLIA_RPC_HTTP:${GRAPH_SCROLL_SEPOLIA_RPC:${RPC_URL:}}}
+      faucet-address: ${FAUCETV2_SCROLL_SEPOLIA_ADDRESS:0xBd64eD49edf5dAdB4b5931c4190FC005C88F33eE}
+      address-book-path: ${FAUCETV2_SCROLL_SEPOLIA_ADDRESS_BOOK:../contracts/deployments/scroll/address_book.md}
+      signer-private-key: ${FAUCET_SIGNER_PK:}
+      relayer-private-key: ${FAUCET_RELAYER_PK:}
+
 subgraph:
   # Goldsky subgraph endpoints (chain router). Id must match QueryResolver.normalizeChainId().
   chains:
@@ -33,4 +93,3 @@ subgraph:
       enabled: true
       endpoint: ${GOLDSKY_SCROLL_SEPOLIA_ENDPOINT:https://api.goldsky.com/api/public/project_cmjbktp0056ic01yj30ya4t7q/subgraphs/dripswap-v2-scroll-sepolia/1.0.5/gn}
       start-block: 0
-

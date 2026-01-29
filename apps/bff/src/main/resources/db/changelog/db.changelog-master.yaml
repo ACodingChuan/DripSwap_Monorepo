@@ -1,0 +1,5 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/changes/001-faucetv2-v2.yaml
+  - include:
+      file: db/changelog/changes/002-ccip-bridge-record.yaml

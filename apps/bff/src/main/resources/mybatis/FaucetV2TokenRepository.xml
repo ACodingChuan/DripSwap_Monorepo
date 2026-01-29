@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dripswap.bff.repository.FaucetV2TokenRepository">
+    <resultMap id="TokenSnapshotMap" type="com.dripswap.bff.repository.TokenSnapshot">
+        <id property="tokenAddress" column="token_address"/>
+        <result property="symbol" column="symbol"/>
+        <result property="singleAmountRaw" column="single_amount_raw"
+                typeHandler="com.dripswap.bff.repository.typehandler.NumericBigIntegerTypeHandler"/>
+        <result property="whitelist" column="whitelist"/>
+        <result property="vaultBalanceRaw" column="vault_balance_raw"
+                typeHandler="com.dripswap.bff.repository.typehandler.NumericBigIntegerTypeHandler"/>
+        <result property="issuedRaw" column="issued_raw"
+                typeHandler="com.dripswap.bff.repository.typehandler.NumericBigIntegerTypeHandler"/>
+    </resultMap>
+
+    <select id="findTokenSnapshot" resultMap="TokenSnapshotMap">
+        select tc.token_address, tc.symbol, tc.single_amount_raw, tc.whitelist, tc.vault_balance_raw,
+               coalesce(tdi.issued_raw, 0) as issued_raw
+        from faucet_token_config tc
+        left join faucet_token_daily_issued tdi
+          on tdi.chain_id = tc.chain_id and tdi.token_address = tc.token_address and tdi.day = #{day}
+        where tc.chain_id = #{chainId}
+          and (tc.token_address = #{token} or tc.symbol = #{symbol})
+        limit 1
+    </select>
+</mapper>

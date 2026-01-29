@@ -1,0 +1,74 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-ccip-bridge-record
+      author: codex
+      changes:
+        - createTable:
+            tableName: ccip_bridge_record
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: message_id
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_address
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_symbol
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_address
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: from_chain_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: to_chain_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_tx_hash
+                  type: varchar(96)
+              - column:
+                  name: created_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamptz
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false
+
+        - addUniqueConstraint:
+            tableName: ccip_bridge_record
+            columnNames: message_id
+            constraintName: uk_ccip_bridge_record_message_id
+
+        - createIndex:
+            tableName: ccip_bridge_record
+            indexName: idx_ccip_bridge_record_user_created
+            columns:
+              - column:
+                  name: user_address
+              - column:
+                  name: created_at
+

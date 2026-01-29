@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dripswap.bff.repository.FaucetV2ClaimRepository">
+    <resultMap id="StoredRequestMap" type="com.dripswap.bff.repository.StoredRequest">
+        <id property="requestId" column="id"
+            typeHandler="com.dripswap.bff.repository.typehandler.UuidTypeHandler"/>
+        <result property="status" column="status"/>
+        <result property="txHash" column="tx_hash"/>
+    </resultMap>
+
+    <select id="findByIdempotency" resultMap="StoredRequestMap">
+        select id, status, tx_hash
+        from faucet_claim_request
+        where idempotency_key = #{key}
+        limit 1
+    </select>
+
+    <insert id="insertClaimRequest" parameterType="com.dripswap.bff.repository.FaucetV2ClaimRepository$ClaimSubmittedParam">
+        insert into faucet_claim_request
+            (id, chain_id, user_address, token_address, amount_raw, day, claim_nonce, idempotency_key,
+             device_id, ip_hash, status, tx_hash, check_at, created_at, updated_at)
+        values
+            (#{requestId}, #{chainId}, #{user}, #{token},
+             #{amount, typeHandler=com.dripswap.bff.repository.typehandler.NumericBigIntegerTypeHandler},
+             #{day},
+             #{claimNonce, typeHandler=com.dripswap.bff.repository.typehandler.NumericBigIntegerTypeHandler},
+             #{idempotencyKey},
+             #{deviceId}, #{ipHash}, 'SUBMITTED', #{txHash},
+             #{checkAt, typeHandler=com.dripswap.bff.repository.typehandler.InstantTypeHandler},
+             now(), now())
+    </insert>
+
+    <insert id="upsertUserDaily">
+        insert into faucet_user_daily (chain_id, user_address, day, claim_count, last_claim_at)
+        values (#{chainId}, #{user}, #{day}, 1, now())
+        on conflict (chain_id, user_address, day)
+        do update set claim_count = faucet_user_daily.claim_count + 1, last_claim_at = excluded.last_claim_at
+    </insert>
+
+    <insert id="upsertIpDaily">
+        insert into faucet_ip_daily (chain_id, ip_hash, day, claim_count)
+        values (#{chainId}, #{ipHash}, #{day}, 1)
+        on conflict (chain_id, ip_hash, day)
+        do update set claim_count = faucet_ip_daily.claim_count + 1
+    </insert>
+
+    <insert id="upsertTokenDailyIssued">
+        insert into faucet_token_daily_issued (chain_id, token_address, day, issued_raw)
+        values (#{chainId}, #{token}, #{day},
+                #{amount, typeHandler=com.dripswap.bff.repository.typehandler.NumericBigIntegerTypeHandler})
+        on conflict (chain_id, token_address, day)
+        do update set issued_raw = faucet_token_daily_issued.issued_raw + excluded.issued_raw
+    </insert>
+
+    <update id="decrementVaultBalance">
+        update faucet_token_config
+        set vault_balance_raw =
+            vault_balance_raw - #{amount, typeHandler=com.dripswap.bff.repository.typehandler.NumericBigIntegerTypeHandler},
+            updated_at = now()
+        where chain_id = #{chainId} and token_address = #{token}
+    </update>
+
+    <resultMap id="PendingReceiptMap" type="com.dripswap.bff.repository.PendingReceipt">
+        <id property="requestId" column="id"
+            typeHandler="com.dripswap.bff.repository.typehandler.UuidTypeHandler"/>
+        <result property="chainId" column="chain_id"/>
+        <result property="txHash" column="tx_hash"/>
+        <result property="checkAt" column="check_at"
+                typeHandler="com.dripswap.bff.repository.typehandler.InstantTypeHandler"/>
+        <result property="createdAt" column="created_at"
+                typeHandler="com.dripswap.bff.repository.typehandler.InstantTypeHandler"/>
+    </resultMap>
+
+    <select id="findPendingReceipts" resultMap="PendingReceiptMap">
+        select id, chain_id, tx_hash, check_at, created_at
+        from faucet_claim_request
+        where status = 'SUBMITTED'
+    </select>
+
+    <update id="updateStatus">
+        update faucet_claim_request
+        set status = #{status}, updated_at = now()
+        where id = #{id} and status = 'SUBMITTED'
+    </update>
+
+    <resultMap id="RollbackRowMap" type="com.dripswap.bff.repository.RollbackRow">
+        <result property="chainId" column="chain_id"/>
+        <result property="userAddress" column="user_address"/>
+        <result property="tokenAddress" column="token_address"/>
+        <result property="amountRaw" column="amount_raw"
+                typeHandler="com.dripswap.bff.repository.typehandler.NumericBigIntegerTypeHandler"/>
+        <result property="day" column="day"/>
+        <result property="ipHash" column="ip_hash"/>
+    </resultMap>
+
+    <select id="findRollbackRow" resultMap="RollbackRowMap">
+        select chain_id, user_address, token_address, amount_raw, day, ip_hash
+        from faucet_claim_request
+        where id = #{id}
+        limit 1
+    </select>
+
+    <update id="updateCheckAt">
+        update faucet_claim_request
+        set check_at = #{checkAt, typeHandler=com.dripswap.bff.repository.typehandler.InstantTypeHandler},
+            updated_at = now()
+        where id = #{id, typeHandler=com.dripswap.bff.repository.typehandler.UuidTypeHandler}
+          and status = 'SUBMITTED'
+    </update>
+
+    <select id="countActiveByTokenDay" resultType="int">
+        select count(1)
+        from faucet_claim_request
+        where chain_id = #{chainId}
+          and token_address = #{token}
+          and day = #{day}
+          and status in ('SUBMITTED','CONFIRMED')
+    </select>
+
+    <select id="countPendingByToken" resultType="int">
+        select count(1)
+        from faucet_claim_request
+        where chain_id = #{chainId}
+          and token_address = #{token}
+          and status = 'SUBMITTED'
+    </select>
+</mapper>

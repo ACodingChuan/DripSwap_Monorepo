@@ -6,7 +6,22 @@ import { useMemo, useState } from 'react';
 import { ExploreLayout } from '@/app/components/explore-layout';
 import { fetchRecentTransactions } from '@/app/services/explore-service';
 import type { ExploreRecentTransaction } from '@/domain/ports/explore-port';
-import { Badge, Card, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Skeleton } from '@/shared/ui';
+import {
+  Badge,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  Skeleton,
+} from '@/shared/ui';
+import { Check, ChevronDown } from '@/shared/icons';
+import { getExplorerAddressUrl, getExplorerTxUrl, shortenHex } from '@/shared/utils';
 
 import { rootRoute } from './root';
 
@@ -14,17 +29,6 @@ function formatChainLabel(chainId: number) {
   if (chainId === 11155111) return 'Sepolia';
   if (chainId === 534351) return 'Scroll Sepolia';
   return String(chainId);
-}
-
-function getTxExplorerUrl(chainId: number, txHash: string) {
-  if (chainId === 11155111) return `https://sepolia.etherscan.io/tx/${txHash}`;
-  if (chainId === 534351) return `https://sepolia.scrollscan.com/tx/${txHash}`;
-  return null;
-}
-
-function shortenAddress(value: string) {
-  if (value.length <= 12) return value;
-  return `${value.slice(0, 6)}…${value.slice(-4)}`;
 }
 
 function safeParseJson(value: string | null | undefined): unknown {
@@ -67,6 +71,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 type SwapDecodedData = {
+  type?: 'SWAP' | 'MINT' | 'BURN';
   pair?: string;
   sender?: string;
   from?: string;
@@ -78,6 +83,10 @@ type SwapDecodedData = {
   timestamp?: number;
   tokenIn?: { id?: string; symbol?: string; name?: string; decimals?: number };
   tokenOut?: { id?: string; symbol?: string; name?: string; decimals?: number };
+  token0?: { id?: string; symbol?: string; name?: string; decimals?: number };
+  token1?: { id?: string; symbol?: string; name?: string; decimals?: number };
+  amount0?: string;
+  amount1?: string;
 };
 
 function parseSwapDecodedData(value: string | null | undefined): SwapDecodedData | null {
@@ -90,6 +99,7 @@ function getWalletAddress(decoded: SwapDecodedData | null) {
   if (!decoded) return null;
   if (typeof decoded.from === 'string' && decoded.from.length > 0) return decoded.from;
   if (typeof decoded.account === 'string' && decoded.account.length > 0) return decoded.account;
+  if (typeof decoded.to === 'string' && decoded.to.length > 0) return decoded.to;
   return null;
 }
 
@@ -107,22 +117,41 @@ function getTokenSymbol(token: SwapDecodedData['tokenIn'] | SwapDecodedData['tok
   return '—';
 }
 
+function getTokenSymbolLite(token: SwapDecodedData['token0'] | SwapDecodedData['token1'] | undefined) {
+  if (!token) return '—';
+  if (typeof token.symbol === 'string' && token.symbol.length > 0) return token.symbol;
+  return '—';
+}
+
 function buildTxSummary(tx: ExploreRecentTransaction) {
   const decoded = parseSwapDecodedData(tx.decodedData);
+  const txType = decoded?.type ?? 'SWAP';
+
   const tokenInSymbol = getTokenSymbol(decoded?.tokenIn);
   const tokenOutSymbol = getTokenSymbol(decoded?.tokenOut);
+  const token0Symbol = getTokenSymbolLite(decoded?.token0);
+  const token1Symbol = getTokenSymbolLite(decoded?.token1);
+
   const amountIn = decoded && typeof decoded.amountIn === 'string' ? decoded.amountIn : null;
   const amountOut = decoded && typeof decoded.amountOut === 'string' ? decoded.amountOut : null;
+  const amount0 = decoded && typeof decoded.amount0 === 'string' ? decoded.amount0 : null;
+  const amount1 = decoded && typeof decoded.amount1 === 'string' ? decoded.amount1 : null;
+
   const amountUsd = decoded && typeof decoded.amountUsd === 'string' ? decoded.amountUsd : null;
   const walletAddress = getWalletAddress(decoded);
   const timestampSeconds = getTimestampSeconds(tx, decoded);
 
   return {
     decoded,
+    txType,
     tokenInSymbol,
     tokenOutSymbol,
+    token0Symbol,
+    token1Symbol,
     amountIn,
     amountOut,
+    amount0,
+    amount1,
     amountUsd,
     walletAddress,
     timestampSeconds,
@@ -132,16 +161,39 @@ function buildTxSummary(tx: ExploreRecentTransaction) {
 const ExploreTransactionsPage = () => {
   const chainId = useChainId();
   const [selectedTxId, setSelectedTxId] = useState<string | null>(null);
+  const [selectedTypes, setSelectedTypes] = useState<Array<'SWAP' | 'MINT' | 'BURN'>>([
+    'SWAP',
+    'MINT',
+    'BURN',
+  ]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['explore', 'recentTransactions', chainId],
-    queryFn: () => fetchRecentTransactions({ chainId: String(chainId), limit: 50 }),
+    queryFn: () =>
+      fetchRecentTransactions({
+        chainId: String(chainId),
+        limit: 50,
+      }),
   });
+
+  const filtered = useMemo(() => {
+    const rows = data ?? [];
+    if (selectedTypes.length === 0) return rows;
+    return rows.filter((tx) => {
+      const decoded = parseSwapDecodedData(tx.decodedData);
+      const t = decoded?.type;
+      if (t === 'SWAP' || t === 'MINT' || t === 'BURN') {
+        return selectedTypes.includes(t);
+      }
+      // Back-compat: if missing type, treat as SWAP.
+      return selectedTypes.includes('SWAP');
+    });
+  }, [data, selectedTypes]);
 
   const chainLabel = formatChainLabel(chainId);
   const selectedTx = useMemo(
-    () => (selectedTxId ? (data ?? []).find((tx) => tx.id === selectedTxId) ?? null : null),
-    [data, selectedTxId]
+    () => (selectedTxId ? (filtered ?? []).find((tx) => tx.id === selectedTxId) ?? null : null),
+    [filtered, selectedTxId]
   );
   const selectedSummary = useMemo(() => (selectedTx ? buildTxSummary(selectedTx) : null), [selectedTx]);
 
@@ -163,7 +215,61 @@ const ExploreTransactionsPage = () => {
               <thead className="border-b border-border/70 bg-muted/60 text-xs font-medium tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-[var(--space-md)] py-[var(--space-sm)] text-left">Time</th>
-                  <th className="px-[var(--space-md)] py-[var(--space-sm)] text-left">Type</th>
+                  <th className="px-[var(--space-md)] py-[var(--space-sm)] text-left">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex cursor-pointer select-none items-center gap-1 rounded-md px-2 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        >
+                          TYPE
+                          <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      {/* Uniswap-like overlay: larger surface, clear selection state */}
+                      <DropdownMenuContent
+                        align="start"
+                        sideOffset={8}
+                        className="w-60 rounded-xl border border-border/70 bg-background p-1.5 shadow-lg"
+                      >
+                        {(
+                          [
+                            { key: 'SWAP', label: 'Swap' },
+                            { key: 'MINT', label: 'Mint' },
+                            { key: 'BURN', label: 'Burn' },
+                          ] as const
+                        ).map((opt) => {
+                          const checked = selectedTypes.includes(opt.key);
+                          return (
+                            <DropdownMenuItem
+                              key={opt.key}
+                              onSelect={(event) => {
+                                event.preventDefault(); // keep menu open for multi-select
+                                setSelectedTypes((prev) => {
+                                  const has = prev.includes(opt.key);
+                                  const next = has ? prev.filter((t) => t !== opt.key) : [...prev, opt.key];
+                                  // Never allow empty selection; fallback to all.
+                                  return next.length > 0 ? next : ['SWAP', 'MINT', 'BURN'];
+                                });
+                              }}
+                              className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium hover:bg-muted/50 focus:bg-muted/50"
+                            >
+                              <span className="text-foreground">{opt.label}</span>
+                              <span
+                                className={
+                                  checked
+                                    ? 'flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground'
+                                    : 'flex size-8 items-center justify-center rounded-lg border border-border/70 bg-background'
+                                }
+                              >
+                                <Check className={checked ? 'size-4' : 'size-4 opacity-0'} aria-hidden="true" />
+                              </span>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </th>
                   <th className="px-[var(--space-md)] py-[var(--space-sm)] text-right">USD</th>
                   <th className="px-[var(--space-md)] py-[var(--space-sm)] text-right">Token amount</th>
                   <th className="px-[var(--space-md)] py-[var(--space-sm)] text-right">Token amount</th>
@@ -205,7 +311,7 @@ const ExploreTransactionsPage = () => {
                           </td>
                         </tr>
                       )
-                    : (data ?? []).length === 0
+                    : (filtered ?? []).length === 0
                       ? (
                           <tr>
                             <td
@@ -216,7 +322,7 @@ const ExploreTransactionsPage = () => {
                             </td>
                           </tr>
                         )
-                      : (data ?? []).map((tx) => {
+                      : (filtered ?? []).map((tx) => {
                           const summary = buildTxSummary(tx);
                           const timeLabel =
                             summary.timestampSeconds && summary.timestampSeconds > 0
@@ -242,31 +348,49 @@ const ExploreTransactionsPage = () => {
                               </td>
                               <td className="px-[var(--space-md)] py-[var(--space-sm)]">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-muted-foreground">Swap</span>
-                                  <span className="font-medium">{summary.tokenInSymbol}</span>
-                                  <span className="text-muted-foreground">for</span>
-                                  <span className="font-medium">{summary.tokenOutSymbol}</span>
+                                  <span className="text-muted-foreground">{summary.txType}</span>
+                                  {summary.txType === 'SWAP' ? (
+                                    <>
+                                      <span className="font-medium">{summary.tokenInSymbol}</span>
+                                      <span className="text-muted-foreground">for</span>
+                                      <span className="font-medium">{summary.tokenOutSymbol}</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="font-medium">{summary.token0Symbol}</span>
+                                      <span className="text-muted-foreground">/</span>
+                                      <span className="font-medium">{summary.token1Symbol}</span>
+                                    </>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-[var(--space-md)] py-[var(--space-sm)] text-right text-muted-foreground">
                                 {formatUsd(summary.amountUsd)}
                               </td>
                               <td className="px-[var(--space-md)] py-[var(--space-sm)] text-right text-muted-foreground">
-                                {summary.amountIn
-                                  ? `${formatTokenAmount(summary.amountIn)} ${summary.tokenInSymbol}`
-                                  : '—'}
+                                {summary.txType === 'SWAP'
+                                  ? summary.amountIn
+                                    ? `${formatTokenAmount(summary.amountIn)} ${summary.tokenInSymbol}`
+                                    : '—'
+                                  : summary.amount0
+                                    ? `${formatTokenAmount(summary.amount0)} ${summary.token0Symbol}`
+                                    : '—'}
                               </td>
                               <td className="px-[var(--space-md)] py-[var(--space-sm)] text-right text-muted-foreground">
-                                {summary.amountOut
-                                  ? `${formatTokenAmount(summary.amountOut)} ${summary.tokenOutSymbol}`
-                                  : '—'}
+                                {summary.txType === 'SWAP'
+                                  ? summary.amountOut
+                                    ? `${formatTokenAmount(summary.amountOut)} ${summary.tokenOutSymbol}`
+                                    : '—'
+                                  : summary.amount1
+                                    ? `${formatTokenAmount(summary.amount1)} ${summary.token1Symbol}`
+                                    : '—'}
                               </td>
                               <td className="px-[var(--space-md)] py-[var(--space-sm)] text-right text-muted-foreground">
-                                {summary.walletAddress ? shortenAddress(summary.walletAddress) : '—'}
-                              </td>
-                            </tr>
-                          );
-                        })}
+                              {summary.walletAddress ? shortenHex(summary.walletAddress) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
               </tbody>
             </table>
           </div>
@@ -283,9 +407,11 @@ const ExploreTransactionsPage = () => {
           <DialogHeader>
             <DialogTitle>Transaction details</DialogTitle>
             <DialogDescription>
-              {selectedSummary
-                ? `Swap ${selectedSummary.tokenInSymbol} for ${selectedSummary.tokenOutSymbol}`
-                : 'Swap'}
+              {!selectedSummary
+                ? 'Transaction'
+                : selectedSummary.txType === 'SWAP'
+                  ? `Swap ${selectedSummary.tokenInSymbol} for ${selectedSummary.tokenOutSymbol}`
+                  : `${selectedSummary.txType} ${selectedSummary.token0Symbol}/${selectedSummary.token1Symbol}`}
             </DialogDescription>
           </DialogHeader>
 
@@ -307,8 +433,18 @@ const ExploreTransactionsPage = () => {
                   <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Wallet
                   </div>
-                  <div className="mt-1 break-all font-mono text-sm text-foreground">
-                    {selectedSummary.walletAddress ?? '—'}
+                  <div className="mt-1 flex items-center justify-between gap-3 font-mono text-sm text-foreground">
+                    <span>{selectedSummary.walletAddress ? shortenHex(selectedSummary.walletAddress) : '—'}</span>
+                    {selectedSummary.walletAddress && getExplorerAddressUrl(chainId, selectedSummary.walletAddress) ? (
+                      <a
+                        className="text-xs font-medium text-primary hover:underline"
+                        href={getExplorerAddressUrl(chainId, selectedSummary.walletAddress) ?? '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        View
+                      </a>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -355,11 +491,11 @@ const ExploreTransactionsPage = () => {
                   </div>
                 </div>
 
-                {getTxExplorerUrl(chainId, selectedTx.txHash) ? (
+                {getExplorerTxUrl(chainId, selectedTx.txHash) ? (
                   <div className="mt-[var(--space-md)] border-t border-border/60 pt-[var(--space-md)]">
                     <a
                       className="text-sm font-medium text-primary hover:underline"
-                      href={getTxExplorerUrl(chainId, selectedTx.txHash) ?? '#'}
+                      href={getExplorerTxUrl(chainId, selectedTx.txHash) ?? '#'}
                       target="_blank"
                       rel="noreferrer"
                     >

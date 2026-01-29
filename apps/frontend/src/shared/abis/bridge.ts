@@ -1,4 +1,22 @@
 export const BRIDGE_ABI = [
+  // Events
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'bytes32', name: 'messageId', type: 'bytes32' },
+      { indexed: true, internalType: 'address', name: 'sender', type: 'address' },
+      { indexed: true, internalType: 'address', name: 'token', type: 'address' },
+      { indexed: false, internalType: 'address', name: 'pool', type: 'address' },
+      { indexed: false, internalType: 'uint64', name: 'dstSelector', type: 'uint64' },
+      { indexed: false, internalType: 'address', name: 'receiver', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { indexed: false, internalType: 'bool', name: 'payInLink', type: 'bool' },
+      { indexed: false, internalType: 'uint256', name: 'ccipFee', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'serviceFeePaid', type: 'uint256' },
+    ],
+    name: 'TransferInitiated',
+    type: 'event',
+  },
   // View Functions
   {
     inputs: [

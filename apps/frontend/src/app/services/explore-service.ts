@@ -1,5 +1,10 @@
 import { resolveExploreAdapter } from '@/infrastructure/adapters';
-import type { GetExploreStatsInput, GetExploreTokensInput, GetRecentTransactionsInput } from '@/domain/ports/explore-port';
+import type {
+  GetExplorePoolsInput,
+  GetExploreStatsInput,
+  GetExploreTokensInput,
+  GetRecentTransactionsInput,
+} from '@/domain/ports/explore-port';
 
 const adapter = resolveExploreAdapter();
 
@@ -13,4 +18,8 @@ export function fetchExploreStats(input: GetExploreStatsInput) {
 
 export function fetchExploreTokens(input: GetExploreTokensInput) {
   return adapter.getExploreTokens(input);
+}
+
+export function fetchExplorePools(input: GetExplorePoolsInput) {
+  return adapter.getExplorePools(input);
 }

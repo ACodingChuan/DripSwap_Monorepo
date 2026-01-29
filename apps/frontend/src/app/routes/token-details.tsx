@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, createRoute } from '@tanstack/react-router';
 import { format } from 'date-fns';
 import type { EChartsOption } from 'echarts';
-import { BarChart, CandlestickChart, LineChart } from 'echarts/charts';
+import { BarChart, CandlestickChart as EchartsCandlestickChart, LineChart as EchartsLineChart } from 'echarts/charts';
 import { DataZoomComponent, GridComponent, TooltipComponent } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import ReactEchartsCore from 'echarts-for-react/lib/core';
@@ -12,24 +12,20 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchTokenDetails, fetchTokenPools, fetchTokenPriceCandles, fetchTokenTransactions } from '@/app/services/token-service';
 import { useUiStore } from '@/app/store/ui-store';
 import type { TokenChartInterval } from '@/domain/ports/token-port';
-import { ArrowLeft } from '@/shared/icons';
+import { ArrowLeft, CandlestickChart, LineChart } from '@/shared/icons';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Skeleton } from '@/shared/ui';
-import { cn } from '@/shared/utils';
+import { cn, shortenHex } from '@/shared/utils';
 
 import { rootRoute } from './root';
 
 echarts.use([
   CanvasRenderer,
-  CandlestickChart,
   BarChart,
-  LineChart,
+  EchartsCandlestickChart,
+  EchartsLineChart,
   TooltipComponent,
   GridComponent,
   DataZoomComponent,
-]);
-
-const VETH_ADDRESS_SET = new Set([
-  '0xe91d02e66a9152fee1bc79c1830121f6507a4f6d', // Scroll Sepolia vETH (example)
 ]);
 
 function formatChainLabel(chain: string) {
@@ -40,13 +36,13 @@ function formatChainLabel(chain: string) {
 }
 
 function formatUsd(value: number | null | undefined) {
-  if (!value) return '—';
+  if (value === null || value === undefined) return '—';
   if (!Number.isFinite(value)) return '—';
   return `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 }
 
 function formatLargeUsd(value: number | null | undefined) {
-  if (!value) return '—';
+  if (value === null || value === undefined) return '—';
   if (!Number.isFinite(value)) return '—';
   if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B`;
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
@@ -66,7 +62,9 @@ function percentColor(value: number | null | undefined) {
   return value > 0 ? 'text-emerald-600' : 'text-red-600';
 }
 
-type ChartRangeKey = '1D' | '1W' | '1M' | '1Y';
+type ChartRangeKey = '1H' | '1D' | '1W' | '1M' | '1Y' | 'ALL';
+type ChartMetricKey = 'PRICE' | 'VOLUME' | 'TVL';
+type PriceViewKey = 'LINE' | 'CANDLE';
 
 const CHART_RANGES: Array<{
   key: ChartRangeKey;
@@ -75,31 +73,25 @@ const CHART_RANGES: Array<{
   baseInterval: TokenChartInterval;
   bucketSeconds: number;
 }> = [
-  // As requested:
-  // 1D: 1h/point (token_hour_data)
-  // 1W: 2h/point (token_hour_data aggregated)
-  // 1M: 8h/point (token_hour_data aggregated)
-  // 1Y: 2d/point (token_day_data or day-aggregated, then aggregated again)
+  { key: '1H', label: '1H', seconds: 1 * 60 * 60, baseInterval: 'MINUTE', bucketSeconds: 1 * 60 },
   { key: '1D', label: '1D', seconds: 24 * 60 * 60, baseInterval: 'HOUR', bucketSeconds: 1 * 60 * 60 },
   { key: '1W', label: '1W', seconds: 7 * 24 * 60 * 60, baseInterval: 'HOUR', bucketSeconds: 2 * 60 * 60 },
   { key: '1M', label: '1M', seconds: 30 * 24 * 60 * 60, baseInterval: 'HOUR', bucketSeconds: 8 * 60 * 60 },
   { key: '1Y', label: '1Y', seconds: 365 * 24 * 60 * 60, baseInterval: 'DAY', bucketSeconds: 2 * 24 * 60 * 60 },
+  // Backend caches a ~400d window for DAY; "ALL" maps to that window.
+  { key: 'ALL', label: 'ALL', seconds: 400 * 24 * 60 * 60, baseInterval: 'DAY', bucketSeconds: 7 * 24 * 60 * 60 },
 ];
 
 const TokenDetailsPage = () => {
   const { chain, tokenAddress } = tokenDetailsRoute.useParams();
   const resolvedTheme = useUiStore((s) => s.resolvedTheme);
   const [rangeKey, setRangeKey] = useState<ChartRangeKey>('1W');
+  const [metricKey, setMetricKey] = useState<ChartMetricKey>('PRICE');
+  const [priceViewKey, setPriceViewKey] = useState<PriceViewKey>('LINE');
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
 
   const chainLabel = formatChainLabel(chain);
   const tokenId = tokenAddress.trim().toLowerCase();
-  const mockChart = useMemo(() => {
-    if (!import.meta.env.DEV) return false;
-    if (typeof window === 'undefined') return false;
-    const params = new URLSearchParams(window.location.search);
-    return params.get('mockChart') === '1';
-  }, []);
 
   const { data: tokenDetails, isLoading: isTokenLoading } = useQuery({
     queryKey: ['token', 'details', chain, tokenId],
@@ -147,40 +139,10 @@ const TokenDetailsPage = () => {
   });
 
   const displayedCandles = useMemo(() => {
-    const base = bucketOhlcSeries(candles ?? [], selectedRange.bucketSeconds);
-    const shouldMockByToken =
-      (tokenDetails?.symbol?.toLowerCase() === 'veth' || VETH_ADDRESS_SET.has(tokenId)) &&
-      base.length < 12;
-
-    if (!mockChart && !shouldMockByToken) {
-      return base;
-    }
-
-    if (isCandlesLoading) {
-      return base;
-    }
-
-    const seedKey = `${tokenId}:${chain}:${selectedRange.baseInterval}:${selectedRange.bucketSeconds}:${candleFrom}:${nowSec}`;
-    const generated = generateMockOhlcSeries({
-      from: candleFrom,
-      to: nowSec,
-      interval: selectedRange.baseInterval,
-      seedKey,
-      basePriceUsd: tokenDetails?.priceUsd ?? 3000,
-    });
-    return bucketOhlcSeries(generated, selectedRange.bucketSeconds);
+    return bucketOhlcSeries(candles ?? [], selectedRange.bucketSeconds);
   }, [
     candles,
-    chain,
-    candleFrom,
-    isCandlesLoading,
-    mockChart,
-    nowSec,
-    selectedRange.baseInterval,
     selectedRange.bucketSeconds,
-    tokenDetails?.priceUsd,
-    tokenDetails?.symbol,
-    tokenId,
   ]);
 
   const { data: pools, isLoading: isPoolsLoading } = useQuery({
@@ -195,47 +157,138 @@ const TokenDetailsPage = () => {
 
   const chartOption = useMemo<EChartsOption>(() => {
     const axisLabelColor = resolvedTheme === 'dark' ? 'white' : 'black';
-    const rows = (displayedCandles ?? [])
-      .map((c) => [c.timestamp * 1000, c.open, c.close, c.low, c.high, c.volumeUsd])
-      .filter((row) => Number.isFinite(row[0] as number));
+    const splitLineColor = resolvedTheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)';
+
+    const points = (displayedCandles ?? [])
+      .map((c) => ({
+        ts: c.timestamp * 1000,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+        price: c.close,
+        volume: c.volumeUsd,
+        tvl: c.tvlUsd,
+      }))
+      .filter((p) => Number.isFinite(p.ts));
+
+    const metricLabel = metricKey === 'PRICE' ? 'Price' : metricKey === 'VOLUME' ? 'Volume' : 'TVL';
+
+    const tooltipFormatter = (params: unknown) => {
+      const items = Array.isArray(params) ? (params as any[]) : [params as any];
+      const item = items[0];
+      const value = (item?.value ?? item?.data) as unknown;
+      const axisValue = item?.axisValue as unknown;
+
+      const data = Array.isArray(value) ? value : [];
+      const ts =
+        typeof axisValue === 'number'
+          ? axisValue
+          : typeof data[0] === 'number'
+            ? (data[0] as number)
+            : Number.NaN;
+      if (!Number.isFinite(ts)) return '';
+
+      const showTime = selectedRange.bucketSeconds < 86400;
+      const date = format(new Date(ts), showTime ? 'dd MMM HH:mm' : 'dd MMM yyyy');
+
+      if (metricKey === 'PRICE' && priceViewKey === 'CANDLE') {
+        const open = data[1] as number;
+        const close = data[2] as number;
+        const low = data[3] as number;
+        const high = data[4] as number;
+        return [
+          `<div style="min-width: 180px">`,
+          `<div style="margin-bottom: 6px; font-weight: 600">${date}</div>`,
+          `<div>O: ${formatUsd(open)}</div>`,
+          `<div>H: ${formatUsd(high)}</div>`,
+          `<div>L: ${formatUsd(low)}</div>`,
+          `<div>C: ${formatUsd(close)}</div>`,
+          `</div>`,
+        ].join('');
+      }
+
+      const metricValue = data[1] as number;
+      const formatted = metricKey === 'PRICE' ? formatUsd(metricValue) : formatLargeUsd(metricValue);
+      return [
+        `<div style="min-width: 180px">`,
+        `<div style="margin-bottom: 6px; font-weight: 600">${date}</div>`,
+          `<div>${metricLabel}: ${formatted}</div>`,
+        `</div>`,
+      ].join('');
+    };
+
+    const series: EChartsOption['series'] = (() => {
+      if (metricKey === 'VOLUME') {
+        return [
+          {
+            name: metricLabel,
+            type: 'bar' as const,
+            data: points.map((p) => [p.ts, p.volume]),
+            encode: { x: 0, y: 1 },
+            itemStyle: { color: 'rgba(59, 126, 246, 0.75)' },
+            barMaxWidth: 10,
+          },
+        ];
+      }
+
+      if (metricKey === 'TVL') {
+        return [
+          {
+            name: metricLabel,
+            type: 'line' as const,
+            data: points.map((p) => [p.ts, p.tvl]),
+            encode: { x: 0, y: 1 },
+            showSymbol: false,
+            smooth: true,
+            lineStyle: { color: '#3B7EF6', width: 2, opacity: 0.95 },
+            areaStyle: { color: 'rgba(59, 126, 246, 0.18)' },
+          },
+        ];
+      }
+
+      // PRICE
+      if (priceViewKey === 'CANDLE') {
+        return [
+          {
+            name: metricLabel,
+            type: 'candlestick' as const,
+            data: points.map((p) => [p.ts, p.open, p.close, p.low, p.high]),
+            encode: { x: 0, y: [1, 2, 3, 4] },
+            itemStyle: {
+              color: '#16a34a',
+              color0: '#dc2626',
+              borderColor: '#16a34a',
+              borderColor0: '#dc2626',
+            },
+          },
+        ];
+      }
+
+      return [
+        {
+          name: metricLabel,
+          type: 'line' as const,
+          data: points.map((p) => [p.ts, p.price]),
+          encode: { x: 0, y: 1 },
+          showSymbol: false,
+          smooth: true,
+          lineStyle: { color: '#3B7EF6', width: 2, opacity: 0.95 },
+          areaStyle: { color: 'rgba(59, 126, 246, 0.18)' },
+        },
+      ];
+    })();
 
     return {
-      axisPointer: {
-        link: [{ xAxisIndex: [0, 1] }],
-      },
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'cross' },
-        formatter: (params) => {
-          const items = Array.isArray(params) ? params : [params];
-          const candle = items.find((p) => p.seriesType === 'candlestick');
-          if (!candle || !Array.isArray(candle.data)) return '';
-          const [ts, open, close, low, high, volumeUsd] = candle.data as unknown as [
-            number,
-            number,
-            number,
-            number,
-            number,
-            number,
-          ];
-          const showTime = selectedRange.bucketSeconds < 86400;
-          const date = format(new Date(ts), showTime ? 'dd MMM HH:mm' : 'dd MMM yyyy');
-          return [
-            `<div style="min-width: 180px">`,
-            `<div style="margin-bottom: 6px; font-weight: 600">${date}</div>`,
-            `<div>O: ${formatUsd(open)}</div>`,
-            `<div>H: ${formatUsd(high)}</div>`,
-            `<div>L: ${formatUsd(low)}</div>`,
-            `<div>C: ${formatUsd(close)}</div>`,
-            `<div style="margin-top: 6px; color: #6b7280">Vol: ${formatLargeUsd(volumeUsd)}</div>`,
-            `</div>`,
-          ].join('');
-        },
+        formatter: tooltipFormatter,
       },
       dataZoom: [
         {
           type: 'inside',
-          xAxisIndex: [0, 1],
+          xAxisIndex: 0,
           zoomOnMouseWheel: 'ctrl',
           moveOnMouseMove: true,
           moveOnMouseWheel: true,
@@ -244,7 +297,7 @@ const TokenDetailsPage = () => {
         },
         {
           type: 'slider',
-          xAxisIndex: [0, 1],
+          xAxisIndex: 0,
           height: 18,
           bottom: 6,
           left: 16,
@@ -267,86 +320,49 @@ const TokenDetailsPage = () => {
           },
         },
       ],
-      grid: [
-        { left: 10, right: 10, top: 10, height: 240 },
-        { left: 10, right: 10, top: 260, height: 90 },
-      ],
-      xAxis: [
-        {
-          type: 'time',
-          gridIndex: 0,
-          axisLine: { show: false },
-          axisTick: { show: false },
-          splitLine: { show: false },
-          axisLabel: { show: false },
-        },
-        {
-          type: 'time',
-          gridIndex: 1,
-          axisLine: { show: false },
-          axisTick: { show: false },
-          splitLine: { show: false },
-          axisLabel: { color: axisLabelColor },
-        },
-      ],
-      yAxis: [
-        {
-          scale: true,
-          gridIndex: 0,
-          position: 'right',
-          axisLabel: { color: axisLabelColor },
-          splitLine: {
-            show: true,
-            lineStyle: {
-              type: 'dashed',
-              color: resolvedTheme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)',
-            },
+      grid: { left: 10, right: 10, top: 10, bottom: 40, containLabel: true },
+      xAxis: {
+        type: 'time',
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLabel: {
+          color: axisLabelColor,
+          formatter: (value: number) => {
+            const date = new Date(value);
+            switch (selectedRange.key) {
+              case '1H':
+              case '1D':
+                return format(date, 'HH:mm');
+              case '1W':
+              case '1M':
+                return format(date, 'd MMM');
+              case '1Y':
+              case 'ALL':
+              default:
+                return format(date, 'MMM yy');
+            }
           },
         },
-        { scale: true, gridIndex: 1, axisLabel: { show: false }, splitLine: { show: false } },
-      ],
-      series: [
-        {
-          name: 'Price',
-          type: 'candlestick',
-          data: rows.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5]]),
-          xAxisIndex: 0,
-          yAxisIndex: 0,
-          itemStyle: {
-            color: '#16a34a',
-            color0: '#dc2626',
-            borderColor: '#16a34a',
-            borderColor0: '#dc2626',
+      },
+      yAxis: {
+        scale: true,
+        position: 'right',
+        axisLabel: { color: axisLabelColor },
+        splitLine: {
+          show: true,
+          lineStyle: {
+            type: 'dashed',
+            color: splitLineColor,
           },
         },
-        {
-          name: 'Volume',
-          type: 'line',
-          xAxisIndex: 1,
-          yAxisIndex: 1,
-          data: rows.map((r) => [r[0], r[5]]),
-          showSymbol: false,
-          smooth: true,
-          lineStyle: { color: '#3B7EF6', width: 2, opacity: 0.9 },
-          areaStyle: { color: 'rgba(59, 126, 246, 0.25)' },
-        },
-      ],
+      },
+      series,
     };
-  }, [displayedCandles, resolvedTheme, selectedRange.bucketSeconds]);
+  }, [displayedCandles, metricKey, priceViewKey, resolvedTheme, selectedRange.bucketSeconds, selectedRange.key]);
 
   const showChartSkeleton = isCandlesLoading || isTokenLoading;
   const showChartEmpty = !showChartSkeleton && ((displayedCandles ?? []).length === 0 || isCandlesError);
-  const isUsingMockChartData = useMemo(() => {
-    if (!import.meta.env.DEV) return false;
-    if (isCandlesLoading) return false;
-    if (!mockChart && tokenDetails?.symbol?.toLowerCase() !== 'veth' && !VETH_ADDRESS_SET.has(tokenId)) {
-      return false;
-    }
-    // If real data is sufficient, don't claim mock.
-    const baseBucketed = bucketOhlcSeries(candles ?? [], selectedRange.bucketSeconds);
-    return baseBucketed.length < 12;
-  }, [candles, isCandlesLoading, mockChart, selectedRange.bucketSeconds, tokenDetails?.symbol, tokenId]);
-
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[1200px] flex-col gap-[var(--space-xl)] px-6 py-[var(--space-2xl)]">
       <header className="flex flex-col gap-[var(--space-sm)]">
@@ -369,7 +385,7 @@ const TokenDetailsPage = () => {
               <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Token details</h1>
             )}
             <p className="text-sm text-muted-foreground">
-              {chainLabel} · {tokenId}
+              {chainLabel} · {shortenHex(tokenId)}
             </p>
           </div>
           <Badge variant="outline">MVP</Badge>
@@ -378,25 +394,70 @@ const TokenDetailsPage = () => {
 
       <section className="grid gap-[var(--space-md)] lg:grid-cols-[2fr,1fr]">
         <Card>
-          <CardHeader className="flex flex-col gap-[var(--space-sm)] sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle className="text-lg">Price</CardTitle>
-            <div className="flex flex-wrap items-center gap-2">
-              {CHART_RANGES.map((range) => (
-                <Button
-                  key={range.key}
-                  type="button"
-                  variant={range.key === rangeKey ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setRangeKey(range.key)}
-                >
-                  {range.label}
-                </Button>
-              ))}
-              {isUsingMockChartData ? (
-                <Badge variant="outline" className="ml-2">
-                  Mock chart
-                </Badge>
-              ) : null}
+          <CardHeader className="flex flex-col gap-[var(--space-sm)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle className="text-lg">
+                {metricKey === 'PRICE' ? 'Price' : metricKey === 'VOLUME' ? 'Volume' : 'TVL'}
+              </CardTitle>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex items-center rounded-full border border-border bg-background p-1">
+                    {[
+                      { key: 'PRICE' as const, label: 'Price' },
+                      { key: 'VOLUME' as const, label: 'Volume' },
+                      { key: 'TVL' as const, label: 'TVL' },
+                    ].map((metric) => (
+                      <Button
+                        key={metric.key}
+                        type="button"
+                        variant={metric.key === metricKey ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="h-8 rounded-full px-4"
+                        onClick={() => setMetricKey(metric.key)}
+                      >
+                        {metric.label}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {metricKey === 'PRICE' ? (
+                    <div className="inline-flex items-center rounded-full border border-border bg-background p-1">
+                      {[
+                        { key: 'LINE' as const, label: 'Line', Icon: LineChart },
+                        { key: 'CANDLE' as const, label: 'K-line', Icon: CandlestickChart },
+                      ].map((view) => (
+                        <Button
+                          key={view.key}
+                          type="button"
+                          variant={view.key === priceViewKey ? 'secondary' : 'ghost'}
+                          size="sm"
+                          className="h-8 rounded-full px-4"
+                          onClick={() => setPriceViewKey(view.key)}
+                        >
+                          <view.Icon className="mr-2 size-4" aria-hidden="true" />
+                          {view.label}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="inline-flex items-center rounded-full border border-border bg-background p-1">
+                  {CHART_RANGES.map((range) => (
+                    <Button
+                      key={range.key}
+                      type="button"
+                      variant={range.key === rangeKey ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="h-8 rounded-full px-4"
+                      onClick={() => setRangeKey(range.key)}
+                    >
+                      {range.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -430,8 +491,8 @@ const TokenDetailsPage = () => {
               },
               {
                 label: '24h change',
-                value: tokenDetails ? formatPercent(tokenDetails.change24hPct) : '—',
-                className: tokenDetails ? percentColor(tokenDetails.change24hPct) : 'text-muted-foreground',
+                value: tokenDetails ? formatPercent(tokenDetails.change24hPct ?? 0) : '—',
+                className: tokenDetails ? percentColor(tokenDetails.change24hPct ?? 0) : 'text-muted-foreground',
               },
               {
                 label: 'TVL',
@@ -439,7 +500,8 @@ const TokenDetailsPage = () => {
               },
               {
                 label: 'Volume (24h)',
-                value: tokenDetails ? formatLargeUsd(tokenDetails.volume24hUsd) : '—',
+                value:
+                  tokenDetails && tokenDetails.volume24hUsd === 0 ? '—' : tokenDetails ? formatLargeUsd(tokenDetails.volume24hUsd) : '—',
               },
             ].map((item) => (
               <div
@@ -478,7 +540,7 @@ const TokenDetailsPage = () => {
                       >
                         {pool.token0.symbol}/{pool.token1.symbol}
                       </Link>
-                      <div className="truncate text-xs text-muted-foreground">{pool.pairAddress}</div>
+                      <div className="truncate text-xs text-muted-foreground">{shortenHex(pool.pairAddress)}</div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end">
                       <div className="text-foreground">{formatLargeUsd(pool.tvlUsd)}</div>
@@ -532,66 +594,6 @@ export const tokenDetailsRoute = createRoute({
   path: '/explore/tokens/$chain/$tokenAddress',
   component: TokenDetailsPage,
 });
-
-type MockOhlcInput = {
-  from: number;
-  to: number;
-  interval: TokenChartInterval;
-  seedKey: string;
-  basePriceUsd: number;
-};
-
-function generateMockOhlcSeries(input: MockOhlcInput) {
-  const start = Math.min(input.from, input.to);
-  const end = Math.max(input.from, input.to);
-
-  const stepSeconds = resolveMockStepSeconds(input.interval);
-  const targetPoints = Math.max(30, Math.min(Math.floor((end - start) / stepSeconds), 1200));
-  const seed = hashStringToInt(input.seedKey);
-  const rnd = mulberry32(seed);
-
-  let lastClose = Math.max(0.01, input.basePriceUsd);
-  const result = [];
-
-  for (let i = 0; i <= targetPoints; i++) {
-    const timestamp = start + i * stepSeconds;
-    if (timestamp > end) break;
-
-    const drift = (rnd() - 0.48) * 0.22;
-    const shock = rnd() < 0.03 ? (rnd() - 0.5) * 2.2 : 0;
-    const changePct = (drift + shock) * 0.012;
-
-    const open = lastClose;
-    const close = Math.max(0.01, open * (1 + changePct));
-
-    const wiggle = open * (0.002 + rnd() * 0.006);
-    const high = Math.max(open, close) + wiggle * (0.4 + rnd());
-    const low = Math.max(0.01, Math.min(open, close) - wiggle * (0.4 + rnd()));
-
-    const volumeBase = 12000 * (0.4 + rnd() * rnd() * 2.6);
-    const volumeUsd = volumeBase * (1 + Math.abs(changePct) * 40);
-
-    result.push({
-      timestamp,
-      open,
-      high,
-      low,
-      close,
-      volumeUsd,
-      tvlUsd: 0,
-    });
-
-    lastClose = close;
-  }
-
-  return result;
-}
-
-function resolveMockStepSeconds(interval: TokenChartInterval) {
-  if (interval === 'DAY') return 86400;
-  if (interval === 'HOUR') return 3600;
-  return 60;
-}
 
 type OhlcPoint = {
   timestamp: number;
@@ -649,24 +651,4 @@ function bucketOhlcSeries<T extends OhlcPoint>(series: T[], bucketSeconds: numbe
   }
 
   return result.sort((a, b) => a.timestamp - b.timestamp);
-}
-
-function hashStringToInt(value: string) {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-function mulberry32(seed: number) {
-  let state = seed >>> 0;
-  return function next() {
-    state += 0x6D2B79F5;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
 }

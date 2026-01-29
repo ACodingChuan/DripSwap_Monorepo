@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dripswap.bff.repository.FaucetV2ChainConfigRepository">
+    <resultMap id="ChainConfigMap" type="com.dripswap.bff.repository.ChainConfig">
+        <id property="chainId" column="chain_id"/>
+        <result property="enabled" column="enabled"/>
+        <result property="paused" column="paused"/>
+        <result property="userDailyMax" column="user_daily_max"/>
+        <result property="userCooldownSeconds" column="user_cooldown_seconds"/>
+        <result property="claimDeadlineSeconds" column="claim_deadline_seconds"/>
+        <result property="ipDailyMax" column="ip_daily_max"/>
+        <result property="eip712Name" column="eip712_name"/>
+        <result property="eip712Version" column="eip712_version"/>
+        <result property="signerAddress" column="signer_address"/>
+        <result property="relayerAddress" column="relayer_address"/>
+    </resultMap>
+
+    <select id="findByChainId" resultMap="ChainConfigMap">
+        select chain_id, enabled, paused, user_daily_max, user_cooldown_seconds,
+               claim_deadline_seconds, ip_daily_max, eip712_name, eip712_version,
+               signer_address, relayer_address
+        from faucet_chain_config
+        where chain_id = #{chainId}
+    </select>
+</mapper>

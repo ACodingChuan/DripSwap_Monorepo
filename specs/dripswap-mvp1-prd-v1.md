@@ -2,13 +2,13 @@
 
 > **版本**：v1（可直接指导开发）
 >
-> **范围定位**：MVP-1 同时完成“可执行的产品定义 + 数据契约冻结 + 第一版工程落地（BFF 读 Goldsky + Redis）”。新增页面（Explore Pools / Pool Details）的完整落地在后续 MVP-3。
+> **范围定位**：MVP-1 同时完成“可执行的产品定义 + 数据契约冻结 + 第一版工程落地（BFF 读 Goldsky + Redis）”。（原计划）新增页面（Explore Pools / Pool Details）的完整落地在后续 MVP-3；但当前仓库已提前落地基础版，详见 6.1.2。
 >
 > **参考实现**：Uniswap `interface` Explore、`sushiswap` Explore & V2 pool details/management、以及当前 DripSwap 代码现状（`apps/frontend` / `apps/bff` / `apps/subgraphgoldsky`）。
 >
 > **Goldsky 能力前提**：支持 entity 增量推送 + webhook/流式导出 + sink（MVP-1 不强制落地 pipeline/webhook 或大 sink）。
 >
-> **最后更新**：2026-01-16
+> **最后更新**：2026-01-20
 
 ---
 
@@ -22,8 +22,8 @@ DripSwap 目标是做一个基于自建 Uniswap V2 Factory 的测试网 DEX，�
 
 - 前端 `apps/frontend`：
   - Explore Tokens / Explore Transactions / Token Details 已接入 BFF GraphQL（`/graphql`）。
-  - Explore Pools 为占位页（Coming soon）。
-  - Pool Details 页面结构存在但仍为占位/未对齐真实数据。
+  - Explore Pools 已落地（可查/可排序/可跳转 Pool Details）。
+  - Pool Details 已落地基础信息 + 图表 + 交易列表（对齐 Sushi V2 pool page 的布局骨架）。
   - Add/Remove Liquidity 页面 UI 存在但未接入链上 Router。
   - Faucet UI 存在但未对接合约/后端。
 - BFF `apps/bff`：
@@ -45,10 +45,10 @@ DripSwap 目标是做一个基于自建 Uniswap V2 Factory 的测试网 DEX，�
 4) 明确搜索、排序、过滤、limit 的语义与边界  
 5) 明确错误处理契约（哪些场景返回空数组/哪些抛 GraphQL error）以保证前端可稳定渲染  
 
-### 2.2 非目标（MVP-1 不做）
+### 2.2 非目标（MVP-1 不做，实际实现见 6.1.2）
 
 - 不要求本阶段落地最小 pipeline/webhook（属于 MVP-2）
-- 不要求本阶段完成 Explore Pools / Pool Details 的前端页面落地与新增 query 的工程实现（属于 MVP-3），但契约在本 PRD 冻结
+- （原计划）不要求本阶段完成 Explore Pools / Pool Details 的前端页面落地与新增 query 的工程实现（属于 MVP-3）
 - 不实现 Add/Remove Liquidity 的链上交易（属于 MVP-4）
 - 不建设“大 sink”（Postgres/对象存储/队列全量落地，属于 P2）
 - 不做完整 UI 视觉稿（但会规定最小交互与页面结构）
@@ -117,9 +117,9 @@ DripSwap 目标是做一个基于自建 Uniswap V2 Factory 的测试网 DEX，�
   - Explore Tokens：`apps/frontend/src/app/routes/explore-tokens.tsx`
   - Explore Transactions：`apps/frontend/src/app/routes/explore-transactions.tsx`
   - Token Details：`apps/frontend/src/app/routes/token-details.tsx`
-- 需要补齐（本阶段冻结契约）：
-  - Explore Pools：`apps/frontend/src/app/routes/explore-pools.tsx`（从占位改成可开发）
-  - Pool Details：`apps/frontend/src/app/routes/pool-details.tsx`（从占位改成可开发）
+- 已补齐（与契约一起落地）：
+  - Explore Pools：`apps/frontend/src/app/routes/explore-pools.tsx`
+  - Pool Details：`apps/frontend/src/app/routes/pool-details.tsx`
 
 ---
 
@@ -165,14 +165,100 @@ DripSwap 目标是做一个基于自建 Uniswap V2 Factory 的测试网 DEX，�
 - 6.7 `tokenPriceCandles`（Token 图表）
 - 6.8 `tokenPools` / `tokenTransactions`（Token Details pools/tx 列表）
 
-**MVP-1 仅冻结契约（允许先返回空/占位；完整落地在 MVP-3）**
-- 6.4 `explorePools`（前端页面仍为占位）
-- 6.9 `poolDetails`（前端页面仍为占位）
-- 6.10 `poolPriceCandles` / `poolTransactions`（依赖 Pool Details 页面落地）
+**MVP-1 仅冻结契约（原计划）**
+- （原计划）6.4 `explorePools`
+- （原计划）6.9 `poolDetails`
+- （原计划）6.10 `poolPriceCandles` / `poolTransactions`
 
 **数据源与依赖约束（MVP-1 默认）**
 - 权威数据源：Goldsky Subgraph
 - BFF：`Redis（read-through） -> Goldsky`（不要求启用 sink/全量落库）
+
+### 6.1.2 Repo 实际完成情况（2026-01-20，供后续 AI 接手）
+
+> 本节为“实际落地 vs PRD 原计划”的差异记录（以仓库代码为准），用于后续继续开发时快速理解当前状态。
+
+**完成范围（整体结论）**
+- ✅ MVP-1 读路径契约（6.2~6.10）已全部落地可用：BFF（Goldsky + Redis read-through）+ 前端对应页面（Explore Tokens/Pools/Transactions、Token Details、Pool Details）
+- ✅ 6.4/6.9/6.10 原本标注为 “MVP-3 才落地”，已提前在本次实现中完成（页面与后端一起完成）
+
+**按 PRD 目标核对（2.1 必须达成项）**
+| 目标 | 状态 | 备注 |
+|---|---|---|
+| 1) 冻结 P0 “读查询”数据契约（6.2~6.10） | ✅ 已达成 | schema 已补齐并与前端调用对齐 |
+| 2) 落地第一版实现：BFF 读 Goldsky + Redis | ✅ 已达成 | 采用 read-through + batch DataLoader；本地 DB 为空也可跑（读 Goldsky） |
+| 3) 字段数据来源/口径/空值规则 | ✅ 已补充 | PRD 各节 + “契约与实现差异（重要）” |
+| 4) search/sort/filter/limit 语义与边界 | ✅ 基本达成 | 关键 query 已实现 clamp；少量过滤语义（如 recentTransactions.types）仍由前端兜底 |
+| 5) 错误处理契约（空数组 vs error） | ✅ 已对齐 | list query 优先 `[]`，payload 允许 error |
+
+**仍需注意的差异/欠缺（不阻塞 MVP-1，但会影响后续优化）**
+- `recentTransactions(types)`：schema 支持但后端未按入参过滤（当前前端用 UI 侧过滤兜底）
+- 可观测性（NFR）：PRD 提到的 `cacheHit/goldskyLatency/errorCount` 目前未统一埋点
+- 统计口径：部分 “24h” 数据在 testnet 长时间无交易时会为空/为 0（前端已做展示兜底：如 volume=0 渲染为 `—`）
+- Subgraph 约束：Goldsky 对 `first` 有上限（<=1000），实现已做 clamp；若后续加大窗口需改为分页/游标
+
+**后端架构落地（BFF）**
+- 统一 Query Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+- 统一 DataLoader 注册入口（替代多个 Registrar）：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/UnifiedDataLoaderRegistrar.java`
+- Field Resolver（SchemaMapping）目录：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/`
+- Loader（Redis read-through + Subgraph batch）目录：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/`
+- Redis key 规范：`apps/bff/src/main/java/com/dripswap/bff/util/redis/RedisKeys.java`
+
+**前端页面落地（Frontend）**
+- Explore Tokens：`apps/frontend/src/app/routes/explore-tokens.tsx`
+- Explore Pools：`apps/frontend/src/app/routes/explore-pools.tsx`
+- Explore Transactions：`apps/frontend/src/app/routes/explore-transactions.tsx`
+- Token Details：`apps/frontend/src/app/routes/token-details.tsx`
+- Pool Details（对齐 Sushi V2 Pool Page 布局：图表 + 组成 + 统计 + 交易表）：`apps/frontend/src/app/routes/pool-details.tsx`
+
+**Query 落地清单（按 6.x 对应，便于快速定位代码）**
+- 6.2 `exploreStats`
+  - BFF Query：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+  - Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/ExploreStatsFieldResolver.java`
+  - DataLoader：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/stats/`
+  - 前端：`apps/frontend/src/app/services/explore-service.ts`
+- 6.3 `exploreTokens`
+  - BFF Query：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+  - Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/ExploreTokenRowFieldResolver.java`
+  - DataLoader：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/token/`（ethPrice/tokenDayStats/tokenHourStats）
+  - 前端：`apps/frontend/src/app/routes/explore-tokens.tsx`
+- 6.4 `explorePools`
+  - BFF Query：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+  - Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/ExplorePoolRowFieldResolver.java`
+  - DataLoader：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/pool/PoolDayWindowStatsLoader.java`
+  - 前端：`apps/frontend/src/app/routes/explore-pools.tsx`
+- 6.5 `recentTransactions`
+  - BFF Query：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+  - 前端：`apps/frontend/src/app/routes/explore-transactions.tsx`
+- 6.6 `tokenDetails`
+  - BFF Query：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`（只查 token base）
+  - Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/TokenDetailsFieldResolver.java`
+  - DataLoader：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/token/TokenLatestTvlLoader.java`（tvl 快照）
+  - 前端：`apps/frontend/src/app/routes/token-details.tsx`（header）
+- 6.7 `tokenPriceCandles`
+  - BFF Query：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+  - 前端：`apps/frontend/src/app/routes/token-details.tsx`（Price/Volume/TVL 图表切换；Price 支持 Line/K-line）
+- 6.8 `tokenPools` / `tokenTransactions`
+  - BFF Query：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`（Query 内调用 DataLoader）
+  - DataLoader：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/token/TokenPoolsLoader.java`
+  - DataLoader：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/token/TokenTransactionsLoader.java`
+  - 前端：`apps/frontend/src/app/routes/token-details.tsx`（Pools/Transactions 列表）
+- 6.9 `poolDetails`
+  - BFF Query：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+  - DataLoader：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/pool/PoolDetailsLoader.java`
+  - Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/PoolDetailsFieldResolver.java`（复用 6.4 的日窗口统计口径）
+  - 前端：`apps/frontend/src/app/routes/pool-details.tsx`（右侧 cards）
+- 6.10 `poolPriceCandles` / `poolTransactions`
+  - BFF Query：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+  - DataLoader（candles）：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/pool/PoolCandleWindowLoader.java`
+  - DataLoader（tx）：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/pool/PoolTransactionsLoader.java`
+  - 前端：`apps/frontend/src/app/routes/pool-details.tsx`（图表 + tx 表）
+
+**契约与实现差异（重要）**
+- `recentTransactions(types)`：schema 支持，但当前实现为“返回混合列表”，前端自行过滤（types 入参不影响返回）
+- `TokenDetails.change24hPct`：复用 ExploreTokens 的 `change1d` 逻辑；缺数据时后端返回 0（前端按展示规则兜底）
+- `TokenDetails.volume24hUsd`：缺数据时后端返回 0；前端为了避免“长时间无交易时显示 $0.00 的误导”，把 0 渲染为 `—`
+- `poolPriceCandles`：依赖 `PairHourData/PairDayData`；当 hour/day 窗口不足时允许返回空数组（前端显示空态）
 
 ---
 
@@ -213,9 +299,9 @@ exploreStats(chainId: String!, days: Int): ExploreStatsPayload!
 
 ### 当前实现状态（repo）
 - ✅ 已完成（满足 MVP-1 的“Goldsky + Redis”最小可运行实现与前端交互验收）
-- 主查询（只返回 chainId/days seed）：`apps/bff/src/main/java/com/dripswap/bff/gql/QueryResolver.java:207`
-- 字段级 resolver（GraphQL 特性：按需计算字段 + 共享 DataLoader）：`apps/bff/src/main/java/com/dripswap/bff/gql/ExploreStatsFieldResolver.java:1`
-- DataLoader（Redis 二级缓存 + Goldsky 批量取数）：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/ExploreStatsDataLoaderRegistrar.java:1`
+- 主查询（只返回 chainId/days seed）：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+- 字段级 resolver（SchemaMapping）：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/ExploreStatsFieldResolver.java`
+- DataLoader（Redis 二级缓存 + Goldsky 批量取数）：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/stats/`
 - 前端使用与渲染：`apps/frontend/src/app/components/explore-protocol-stats.tsx:45`
 
 ### Redis 缓存（当前实现）
@@ -353,9 +439,9 @@ enum ExploreTokenSort {
 
 ### 当前实现状态（repo）
 - ✅ 已完成（Goldsky 直查 + Redis 缓存；计算字段采用 GraphQL Field Resolver + DataLoader 批量取数，不依赖本地 DB/sink）
-- 主查询（只取基础 token 列表）：`apps/bff/src/main/java/com/dripswap/bff/gql/QueryResolver.java:392`
-- 计算字段 Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/ExploreTokenRowFieldResolver.java:1`
-- DataLoader 批量实现：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/ExploreTokenDataLoaderRegistrar.java:1`
+- 主查询（只取基础 token 列表）：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`
+- 计算字段 Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/ExploreTokenRowFieldResolver.java`
+- DataLoader 批量实现：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/token/`
 - GraphQL schema（可选 sort）：`apps/bff/src/main/resources/graphql/schema.graphqls:46`
 
 ### Redis 缓存（当前实现）
@@ -630,8 +716,12 @@ type ExplorePoolRow {
   - 展示 TVL/Volume/Fee/Tx/APR（空值按 `—`）
 
 ### MVP-1 实现要求（契约冻结即可；实现留到 MVP-3）
-- MVP-1 只要求 schema/type/enum 与本节一致
-- resolver 允许暂时返回 `[]`（前端页面当前为占位）
+- （原计划）MVP-1 只要求 schema/type/enum 与本节一致，resolver 允许暂时返回 `[]`
+- ✅（实际落地）已完成：BFF 实现 `explorePools` 并驱动前端 Explore Pools 页面可用
+  - BFF：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`（explorePools base list）
+  - Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/ExplorePoolRowFieldResolver.java`（volume/fees/tx/apr 等派生）
+  - DataLoader：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/pool/PoolDayWindowStatsLoader.java`（PairDayData 窗口统计）
+  - 前端：`apps/frontend/src/app/routes/explore-pools.tsx`
 
 ---
 
@@ -740,7 +830,7 @@ type TransactionPayload {
 
 ---
 
-## 6.6 Query：Token Details（已存在，冻结口径）
+## 6.6 Query：Token Details
 
 ### GraphQL
 
@@ -770,7 +860,7 @@ tokenDetails(chainId: String!, tokenAddress: String!): TokenDetails
 
 ---
 
-## 6.7 Query：Token Price Candles（已存在，冻结）
+## 6.7 Query：Token Price Candles
 
 ### GraphQL
 
@@ -806,7 +896,7 @@ tokenPriceCandles(
 
 ---
 
-## 6.8 Query：Token Pools / Token Transactions（已存在，冻结）
+## 6.8 Query：Token Pools / Token Transactions（已实现）
 
 ### GraphQL
 
@@ -830,7 +920,7 @@ tokenTransactions(chainId: String!, tokenAddress: String!, limit: Int): [TokenTr
 
 ---
 
-## 6.9 Query：Pool Details（新增，冻结）
+## 6.9 Query：Pool Details（已实现）
 
 ### GraphQL
 
@@ -867,13 +957,16 @@ type PoolDetails {
 ### 验收标准
 - `apps/frontend/src/app/routes/pool-details.tsx` 可改造成真实数据渲染（不需要临时 mock）。
 
-### MVP-1 实现要求（契约冻结即可；实现留到 MVP-3）
-- MVP-1 只要求 schema/type 与本节一致
-- resolver 允许暂时返回 `null`（前端页面当前为占位）
+### MVP-1 实现要求
+- ✅ 已完成（BFF + 前端页面已落地）
+  - BFF：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`（poolDetails）
+  - DataLoader：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/pool/PoolDetailsLoader.java`（Pair 基础信息 + reserves/price）
+  - Field Resolver：`apps/bff/src/main/java/com/dripswap/bff/gql/resolver/field/PoolDetailsFieldResolver.java`（复用 ExplorePools 统计口径）
+  - 前端：`apps/frontend/src/app/routes/pool-details.tsx`
 
 ---
 
-## 6.10 Query：Pool Candles / Pool Transactions（新增，冻结）
+## 6.10 Query：Pool Candles / Pool Transactions（已实现）
 
 ### GraphQL
 
@@ -929,15 +1022,19 @@ type PoolTransactionRow {
 - `poolTransactions`：
   - 从 `Swap/Mint/Burn` 实体按 timestamp desc 拉取
 
-### MVP-1 实现要求（契约冻结即可；实现留到 MVP-3）
-- MVP-1 只要求 schema/type/enum 与本节一致
-- resolver 允许暂时返回 `[]`（依赖 Pool Details 页面落地）
+### MVP-1 实现要求
+- ✅ 已完成（BFF + 前端页面已落地）
+  - BFF：`apps/bff/src/main/java/com/dripswap/bff/gql/api/QueryResolver.java`（poolPriceCandles/poolTransactions）
+  - DataLoader（candles）：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/pool/PoolCandleWindowLoader.java`
+  - DataLoader（tx）：`apps/bff/src/main/java/com/dripswap/bff/gql/dataloader/loader/pool/PoolTransactionsLoader.java`
+  - 前端：`apps/frontend/src/app/routes/pool-details.tsx`
 
 ---
 
 ## 7. 前端交互与页面需求（按页面列出开发要点）
 
-> MVP-1 冻结“页面需要什么数据”，并落地“现有页面可跑”的最小实现；新增页面在后续 MVP 完整落地。
+> （原计划）MVP-1 冻结“页面需要什么数据”，并落地“现有页面可跑”的最小实现；新增页面在后续 MVP 完整落地。
+> （实际落地）Explore Pools + Pool Details 已提前完成基础版（详见 6.1.2），后续 MVP 可在此基础上继续做细节与性能优化。
 
 ### 7.1 Explore Layout（全局）
 
@@ -1016,8 +1113,10 @@ type PoolTransactionRow {
 - 对现有前端调用兼容：
   - `exploreStats(chainId, days)`
   - `exploreTokens(chainId, limit, search)`
+  - `explorePools(chainId, limit, search, sort)`
   - `recentTransactions(chainId, limit)`
   - `tokenDetails/tokenPriceCandles/tokenPools/tokenTransactions`
+  - `poolDetails/poolPriceCandles/poolTransactions`
 
 ### 9.2 行为验收（语义）
 
@@ -1036,20 +1135,18 @@ type PoolTransactionRow {
 **页面验收（以现有前端页面为准）**
 - 本地起 `apps/bff` + `apps/frontend`：
   - Explore：Stats/Tokens/Transactions 可渲染
-  - Token Details：header + candles + pools + tx 列表可渲染
+  - Explore Pools：列表可渲染、可跳转 Pool Details
+  - Token Details：header + candles + pools + tx 列表可渲染（无 mock）
+  - Pool Details：图表（Volume/TVL/Fees）+ Pool Liquidity + Statistics + Transactions 列表可渲染
 
-**接口验收（MVP-1 必须实现）**
-- BFF 至少实现并稳定返回（与当前前端调用兼容）：
+**接口验收（MVP-1 已实现）**
+- BFF 实现并稳定返回：
   - `exploreStats(chainId, days)`
   - `exploreTokens(chainId, limit, search)`
+  - `explorePools(chainId, limit, search, sort)`
   - `recentTransactions(chainId, limit)`
   - `tokenDetails/tokenPriceCandles/tokenPools/tokenTransactions`
-
-**接口验收（MVP-1 仅冻结契约，允许占位）**
-- 允许暂时返回空/占位（但 schema 必须存在且类型一致）：
-  - `explorePools` → `[]`
-  - `poolDetails` → `null`
-  - `poolPriceCandles` / `poolTransactions` → `[]`
+  - `poolDetails/poolPriceCandles/poolTransactions`
 
 ---
 

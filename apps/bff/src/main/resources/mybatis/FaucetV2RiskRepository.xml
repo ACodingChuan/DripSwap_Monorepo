@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dripswap.bff.repository.FaucetV2RiskRepository">
+    <resultMap id="UserIpSnapshotMap" type="com.dripswap.bff.repository.UserIpSnapshot">
+        <result property="userClaimCount" column="user_claim_count"/>
+        <result property="lastClaimAt" column="user_last_claim_at"
+                typeHandler="com.dripswap.bff.repository.typehandler.InstantTypeHandler"/>
+        <result property="ipClaimCount" column="ip_claim_count"/>
+        <result property="blocked" column="blocked"/>
+    </resultMap>
+
+    <select id="loadUserIpSnapshot" resultMap="UserIpSnapshotMap">
+        select
+            (select count(1) from faucet_claim_request
+             where chain_id = #{chainId} and user_address = #{user} and day = #{day}
+               and status in ('SUBMITTED','CONFIRMED')) as user_claim_count,
+            (select max(created_at) from faucet_claim_request
+             where chain_id = #{chainId} and user_address = #{user} and day = #{day}
+               and status in ('SUBMITTED','CONFIRMED')) as user_last_claim_at,
+            (select count(1) from faucet_claim_request
+             where chain_id = #{chainId} and ip_hash = #{ipHash} and day = #{day}
+               and status in ('SUBMITTED','CONFIRMED')) as ip_claim_count,
+            (select (count(1) > 0) from faucet_blacklist
+             where chain_id = #{chainId} and active = true and (user_address = #{user} or ip_hash = #{ipHash})) as blocked
+    </select>
+</mapper>

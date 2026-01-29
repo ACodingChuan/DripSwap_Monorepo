@@ -1,0 +1,35 @@
+{
+  "eip712": {
+    "name": "DripFaucet",
+    "version": "2.0"
+  },
+  "relayerMinNativeBalanceWei": "500000000000000000",
+  "pairRule": {
+    "tokenAneqTokenB": true,
+    "amountEqualsSingleAmount": true
+  },
+  "chains": {
+    "11155111": {
+      "tokens": {
+        "vUSDC": { "decimals": 6, "singleAmountHuman": "200", "singleAmountRaw": "200000000" },
+        "vUSDT": { "decimals": 6, "singleAmountHuman": "200", "singleAmountRaw": "200000000" },
+        "vDAI": { "decimals": 18, "singleAmountHuman": "200", "singleAmountRaw": "200000000000000000000" },
+        "vETH": { "decimals": 18, "singleAmountHuman": "0.05", "singleAmountRaw": "50000000000000000" },
+        "vBTC": { "decimals": 8, "singleAmountHuman": "0.008", "singleAmountRaw": "800000" },
+        "vLINK": { "decimals": 18, "singleAmountHuman": "20", "singleAmountRaw": "20000000000000000000" }
+      }
+    },
+    "534351": {
+      "tokens": {
+        "vUSDC": { "decimals": 6, "singleAmountHuman": "200", "singleAmountRaw": "200000000" },
+        "vUSDT": { "decimals": 6, "singleAmountHuman": "200", "singleAmountRaw": "200000000" },
+        "vDAI": { "decimals": 18, "singleAmountHuman": "200", "singleAmountRaw": "200000000000000000000" },
+        "vETH": { "decimals": 18, "singleAmountHuman": "0.05", "singleAmountRaw": "50000000000000000" },
+        "vBTC": { "decimals": 8, "singleAmountHuman": "0.008", "singleAmountRaw": "800000" },
+        "vLINK": { "decimals": 18, "singleAmountHuman": "20", "singleAmountRaw": "20000000000000000000" },
+        "vSCR": { "decimals": 18, "singleAmountHuman": "100", "singleAmountRaw": "100000000000000000000" }
+      }
+    }
+  }
+}
+

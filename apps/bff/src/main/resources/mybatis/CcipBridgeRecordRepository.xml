@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dripswap.bff.repository.CcipBridgeRecordRepository">
+    <resultMap id="CcipBridgeRecordMap" type="com.dripswap.bff.repository.CcipBridgeRecord">
+        <id property="id" column="id" typeHandler="com.dripswap.bff.repository.typehandler.UuidTypeHandler"/>
+        <result property="messageId" column="message_id"/>
+        <result property="userAddress" column="user_address"/>
+        <result property="tokenSymbol" column="token_symbol"/>
+        <result property="tokenAddress" column="token_address"/>
+        <result property="fromChainId" column="from_chain_id"/>
+        <result property="toChainId" column="to_chain_id"/>
+        <result property="sourceTxHash" column="source_tx_hash"/>
+        <result property="createdAt" column="created_at" typeHandler="com.dripswap.bff.repository.typehandler.InstantTypeHandler"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.dripswap.bff.repository.CcipBridgeRecord">
+        insert into ccip_bridge_record
+            (id, message_id, user_address, token_symbol, token_address, from_chain_id, to_chain_id, source_tx_hash, created_at, updated_at)
+        values
+            (#{id, typeHandler=com.dripswap.bff.repository.typehandler.UuidTypeHandler},
+             #{messageId}, #{userAddress}, #{tokenSymbol}, #{tokenAddress},
+             #{fromChainId}, #{toChainId}, #{sourceTxHash},
+             now(), now())
+    </insert>
+
+    <select id="findByMessageId" resultMap="CcipBridgeRecordMap">
+        select id, message_id, user_address, token_symbol, token_address,
+               from_chain_id, to_chain_id, source_tx_hash, created_at
+        from ccip_bridge_record
+        where message_id = #{messageId}
+        limit 1
+    </select>
+
+    <select id="findByUserAddress" resultMap="CcipBridgeRecordMap">
+        select id, message_id, user_address, token_symbol, token_address,
+               from_chain_id, to_chain_id, source_tx_hash, created_at
+        from ccip_bridge_record
+        where user_address = #{userAddress}
+        order by created_at desc
+        limit #{limit}
+    </select>
+
+    <update id="touchUpdatedAt">
+        update ccip_bridge_record
+        set updated_at = now()
+        where id = #{id, typeHandler=com.dripswap.bff.repository.typehandler.UuidTypeHandler}
+    </update>
+</mapper>
+

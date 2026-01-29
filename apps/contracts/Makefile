@@ -3,6 +3,7 @@
 # =======================================================
 
 .PHONY: all build test clean fmt deploy-all deploy-verify help
+.PHONY: smoke-faucetv2
 
 SHELL := /bin/bash
 NETWORK ?= local
@@ -50,6 +51,35 @@ build-all: build-v2 build
 test:
 	@echo "🧪 运行测试..."
 	forge test -vvv
+
+smoke-faucetv2:
+	@echo "🧯 FaucetV2 smoke：部署/配置/入金/签名/代付跑一次 claimWithSig ($(NETWORK))"
+	@echo "   - 配置写在 .env.$(NETWORK)（或 .env）里：FAUCET_TOKEN_SYMBOL(推荐) 或 FAUCET_TOKEN、FAUCET_FUND_AMOUNT_RAW、FAUCET_CLAIM_NONCE 等"
+	@echo "   - 固定口径见 configs/faucetv2-calibration-v1.json（EIP-712 name/version、singleAmount、relayer min balance）"
+	$(call run_script,script/SmokeFaucetV2.s.sol:SmokeFaucetV2)
+
+configure-faucetv2:
+	@echo "🛠️  FaucetV2 configure：白名单/cap/passPriceWei ($(NETWORK))"
+	@echo "   - 读取 deployments/$(NETWORK)/address_book.md 的 faucetv2.address"
+	@echo "   - token 列表来自 configs/faucetv2-calibration-v1.json；token 地址来自 address_book.md"
+	@echo "   - 如需写 cap：FAUCET_SET_CAPS=true 且设置 FAUCET_TOKEN_DAILY_CAP_RAW__vUSDC 等"
+	$(call run_script,script/ConfigureFaucetV2.s.sol:ConfigureFaucetV2)
+
+fund-faucetv2:
+	@echo "💰 FaucetV2 fund：按 token 分别入金 ($(NETWORK))"
+	@echo "   - 设置 FAUCET_FUND_RAW__vUSDC 等；未提供的 token 会跳过"
+	$(call run_script,script/FundFaucetV2Inventory.s.sol:FundFaucetV2Inventory)
+
+fund-faucetv2-100d:
+	@echo "💰 FaucetV2 fund：按 tokenDailyCap * 100 天入金 ($(NETWORK))"
+	@echo "   - 默认 100 天；可用 FAUCET_FUND_DAYS 覆盖"
+	$(call run_script,script/FundFaucetV2Inventory100Days.s.sol:FundFaucetV2Inventory100Days)
+
+mint-faucetv2-100d:
+	@echo "🪙 Mint VTokens -> FaucetV2：按 100 天库存直接 mint 到 FaucetV2 合约 ($(NETWORK))"
+	@echo "   - 需要 admin 拥有 token 的 DEFAULT_ADMIN_ROLE（脚本会临时 grant BRIDGE_ROLE 给 admin）"
+	@echo "   - 可选：FAUCET_REVOKE_MINTER=true 执行完后 revoke BRIDGE_ROLE"
+	$(call run_script,script/MintVTokensToFaucetV2_100Days.s.sol:MintVTokensToFaucetV2_100Days)
 
 clean:
 	@echo "🧹 清理构建文件..."
@@ -226,6 +256,7 @@ help:
 	@echo "常用命令："
 	@echo "  make build               - 编译合约"
 	@echo "  make test                - 运行测试"
+	@echo "  make smoke-faucetv2 NETWORK=<net> - FaucetV2 smoke（跑通一次真实链 claim）"
 	@echo "  make fmt                 - 格式化代码"
 	@echo "  make clean               - 清理构建文件"
 	@echo ""
