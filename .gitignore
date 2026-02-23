@@ -74,3 +74,6 @@ apps/subgraphgoldsky/**/.cache/
 
 # substreams-sink-mq build artifacts
 apps/substreams-sink-mq/**/target/
+
+# Local-only docs
+/specs/
