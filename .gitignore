@@ -10,6 +10,7 @@ apps/frontend/.env.local
 apps/frontend/.env.*
 apps/frontend/test-results/
 apps/frontend/dripswap.md
+apps/frontend/tsconfig.tsbuildinfo
 
 # Subgraph artifacts
 apps/subgraph/**/build/
@@ -56,6 +57,9 @@ apps/ponder/**/*.log
 .vscode/
 .husky/
 .pnpm-store/
+
+# Runtime secrets / server-only files (do not commit)
+/runtime/
 
 v2-subgraph
 interface
