@@ -1,5 +1,9 @@
 package com.dripswap.bff.service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -7,7 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.dripswap.bff.config.FaucetV2Properties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.FunctionReturnDecoder;
@@ -30,13 +38,17 @@ import org.web3j.protocol.core.Request;
 import org.web3j.protocol.core.methods.request.EthFilter;
 import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.protocol.core.methods.response.EthCall;
+import org.web3j.protocol.core.methods.response.EthTransaction;
 import org.web3j.protocol.core.methods.response.Log;
 import org.web3j.protocol.http.HttpService;
 
 @Service
 public class FaucetV2OnchainService {
+    private static final Logger log = LoggerFactory.getLogger(FaucetV2OnchainService.class);
     private final FaucetV2ChainRegistry chainRegistry;
     private final Map<Long, Web3j> web3ByChain = new ConcurrentHashMap<>();
+    private final HttpClient httpClient = HttpClient.newHttpClient();
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // keccak256("SIGNER_ROLE") from FaucetV2.sol
     private static final byte[] ROLE_SIGNER = Hash.sha3("SIGNER_ROLE".getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -75,6 +87,61 @@ public class FaucetV2OnchainService {
                     .orElseThrow(() -> new IllegalArgumentException("unsupported chainId: " + id));
             return Web3j.build(new HttpService(chain.getRpcUrl()));
         });
+    }
+
+    public EthTransaction getTransactionByHash(long chainId, String txHash) {
+        try {
+            return web3(chainId).ethGetTransactionByHash(txHash).send();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public String sendRawTransaction(long chainId, String signedHex) {
+        try {
+            FaucetV2Properties.Chain chain = chainRegistry.get(chainId)
+                    .orElseThrow(() -> new IllegalArgumentException("unsupported chainId: " + chainId));
+            String payload = objectMapper.writeValueAsString(Map.of(
+                    "jsonrpc", "2.0",
+                    "method", "eth_sendRawTransaction",
+                    "params", List.of(signedHex),
+                    "id", 1
+            ));
+            log.info("faucetv2 rpc send chainId={} method=eth_sendRawTransaction payload={}", chainId, payload);
+            HttpRequest req = HttpRequest.newBuilder(URI.create(chain.getRpcUrl()))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            log.info(
+                    "faucetv2 rpc recv chainId={} method=eth_sendRawTransaction statusCode={} body={}",
+                    chainId,
+                    resp.statusCode(),
+                    resp.body()
+            );
+            if (resp.statusCode() < 200 || resp.statusCode() >= 300) {
+                throw new IllegalStateException("rpc http status " + resp.statusCode() + ": " + resp.body());
+            }
+
+            JsonNode root = objectMapper.readTree(resp.body());
+            JsonNode result = root.get("result");
+            if (result != null && result.isTextual()) {
+                return result.asText();
+            }
+
+            JsonNode error = root.get("error");
+            if (error != null && !error.isNull()) {
+                JsonNode message = error.get("message");
+                if (message != null && message.isTextual() && !message.asText().isBlank()) {
+                    throw new IllegalStateException(message.asText());
+                }
+                throw new IllegalStateException(error.toString());
+            }
+
+            throw new IllegalStateException("invalid eth_sendRawTransaction response: " + resp.body());
+        } catch (Exception e) {
+            throw new IllegalStateException("sendRawTransaction failed for chainId=" + chainId + ": " + e.getMessage(), e);
+        }
     }
 
     public long latestBlockTimestampSeconds(long chainId) {

@@ -1,5 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <circle cx="16" cy="16" r="16" fill="#2563eb" />
-  <path d="M10 20c2 2.5 6 2.5 8 0" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" />
-  <path d="M12 14c1-2 3-3 4-3s3 1 4 3" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="DripSwap favicon">
+  <circle cx="32" cy="32" r="32" fill="#2563eb" />
+  <path
+    d="M32 12C26.9 20 22 26.4 22 34.1C22 39.8 26.5 44 32 44C37.5 44 42 39.8 42 34.1C42 26.4 37.1 20 32 12Z"
+    fill="#ffffff"
+  />
+  <path
+    d="M28.4 34.5C29.1 36.8 31 38.3 33.4 38.3C35 38.3 36.3 37.7 37.4 36.5"
+    fill="none"
+    stroke="#2563eb"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="3"
+  />
 </svg>

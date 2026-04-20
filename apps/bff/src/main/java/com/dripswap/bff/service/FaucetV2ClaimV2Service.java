@@ -23,6 +23,8 @@ import com.dripswap.bff.util.EvmKeys;
 import com.dripswap.bff.util.FaucetV2Eip712Signer;
 import com.dripswap.bff.util.FaucetV2TimeService;
 import com.dripswap.bff.util.Hashing;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,11 +36,13 @@ import org.web3j.abi.datatypes.Type;
 import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.abi.datatypes.generated.Uint64;
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.RawTransaction;
 import org.web3j.protocol.Web3j;
 import org.web3j.tx.RawTransactionManager;
 
 @Service
 public class FaucetV2ClaimV2Service {
+    private static final Logger log = LoggerFactory.getLogger(FaucetV2ClaimV2Service.class);
     private static final DateTimeFormatter DAY_FMT = DateTimeFormatter.BASIC_ISO_DATE;
     private static final int DAILY_CAP_MULTIPLIER = 360;
 
@@ -229,6 +233,16 @@ public class FaucetV2ClaimV2Service {
                     sig
             );
         } catch (Exception e) {
+            log.warn(
+                    "faucetv2 submit failed chainId={} user={} token={} relayer={} idempotencyKey={} claimNonce={} err={}",
+                    req.chainId(),
+                    user,
+                    token.getTokenAddress(),
+                    relayerCreds.getAddress(),
+                    idempotencyKey,
+                    claimNonce,
+                    e.getMessage()
+            );
             return new FaucetV2ClaimV2Response(null, "FAILED", "tx submit failed: " + e.getMessage(), null);
         }
 
@@ -257,6 +271,16 @@ public class FaucetV2ClaimV2Service {
             throw e;
         }
 
+        log.info(
+                "faucetv2 request stored requestId={} chainId={} user={} token={} txHash={} idempotencyKey={} nextCheckAt={}",
+                requestId,
+                req.chainId(),
+                user,
+                token.getTokenAddress(),
+                txHash,
+                idempotencyKey,
+                checkAt
+        );
         receiptQueue.enqueue(requestId, req.chainId(), txHash, checkAt);
         return new FaucetV2ClaimV2Response(requestId, "SUBMITTED", null, txHash);
     }
@@ -315,14 +339,45 @@ public class FaucetV2ClaimV2Service {
         Web3j web3 = onchain.web3(chainId);
         RawTransactionManager txm = new RawTransactionManager(web3, relayer, chainId);
         String data = encodeClaimWithSigData(user, token, amount, day, nonce, deadline, sig);
+        BigInteger relayerNonce = web3.ethGetTransactionCount(relayer.getAddress(), org.web3j.protocol.core.DefaultBlockParameterName.PENDING)
+                .send()
+                .getTransactionCount();
         var gasPriceResp = web3.ethGasPrice().send();
         BigInteger gasPrice = gasPriceResp.getGasPrice();
         if (gasPrice == null) gasPrice = BigInteger.ZERO;
-        var sent = txm.sendTransaction(gasPrice, BigInteger.valueOf(500_000L), faucetAddress, data, BigInteger.ZERO);
-        if (sent.hasError()) {
-            throw new IllegalStateException(sent.getError().getMessage());
-        }
-        return sent.getTransactionHash();
+        log.info(
+                "faucetv2 send start chainId={} relayer={} relayerNonce={} faucet={} user={} token={} amount={} day={} claimNonce={} deadline={} gasPrice={} gasLimit={}",
+                chainId,
+                relayer.getAddress(),
+                relayerNonce,
+                faucetAddress,
+                user,
+                token,
+                amount,
+                day,
+                nonce,
+                deadline,
+                gasPrice,
+                500_000L
+        );
+        RawTransaction rawTx = RawTransaction.createTransaction(
+                relayerNonce,
+                gasPrice,
+                BigInteger.valueOf(500_000L),
+                faucetAddress,
+                BigInteger.ZERO,
+                data
+        );
+        String signedHex = txm.sign(rawTx);
+        String txHash = onchain.sendRawTransaction(chainId, signedHex);
+        log.info(
+                "faucetv2 send accepted chainId={} relayer={} relayerNonce={} txHash={}",
+                chainId,
+                relayer.getAddress(),
+                relayerNonce,
+                txHash
+        );
+        return txHash;
     }
 
     private static String encodeClaimWithSigData(

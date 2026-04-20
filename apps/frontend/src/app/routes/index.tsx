@@ -3,7 +3,7 @@ import { Link, createRoute } from '@tanstack/react-router';
 import { rootRoute } from './root';
 import { usePageFocus } from '@/shared/hooks';
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui';
-import { ArrowLeftRight, ArrowRight, Download, FlaskConical, Mail, MessageCircle, ShieldAlert, Waves } from '@/shared/icons';
+import { ArrowLeftRight, ArrowRight, Download, ExternalLink, FlaskConical, Mail, MessageCircle, ShieldAlert, Waves } from '@/shared/icons';
 
 const FLOW_STEPS = [
   {
@@ -186,6 +186,24 @@ const IndexPage = () => {
                   >
                     t.me/KopChuan
                   </a>
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Walkthrough</div>
+                <div className="mt-2 grid gap-2">
+                  <Button variant="outline" className="w-full justify-start gap-2" asChild>
+                    <a href="https://youtu.be/Tc4MRQqxe-g" target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="size-4" aria-hidden="true" />
+                      YouTube Walkthrough
+                    </a>
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start gap-2" asChild>
+                    <a href="https://www.bilibili.com/video/BV1WxQbBSENb/" target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="size-4" aria-hidden="true" />
+                      Bilibili Walkthrough
+                    </a>
+                  </Button>
                 </div>
               </div>
 

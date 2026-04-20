@@ -34,6 +34,8 @@ public class FaucetV2ReceiptQueueService {
 
     public void enqueue(UUID requestId, long chainId, String txHash, Instant checkAt) {
         if (txHash == null || txHash.isBlank()) return;
+        log.info("faucetv2 receipt enqueue requestId={} chainId={} txHash={} checkAt={}",
+                requestId, chainId, txHash, checkAt);
         queue.offer(new ReceiptTask(requestId, chainId, txHash, checkAt, Instant.now()));
     }
 
@@ -63,6 +65,8 @@ public class FaucetV2ReceiptQueueService {
                     row.getCheckAt() == null ? Instant.now() : row.getCheckAt(),
                     row.getCreatedAt() == null ? Instant.now() : row.getCreatedAt()
             );
+            log.info("faucetv2 receipt reload pending requestId={} chainId={} txHash={} checkAt={} createdAt={}",
+                    row.getRequestId(), row.getChainId(), row.getTxHash(), row.getCheckAt(), row.getCreatedAt());
             queue.offer(task);
         }
     }
@@ -70,20 +74,45 @@ public class FaucetV2ReceiptQueueService {
     private void handleTask(ReceiptTask task) {
         String txHash = task.txHash();
         if (txHash == null || txHash.isBlank()) return;
+        long ageSeconds = ageSeconds(task);
 
         var receiptResp = safeGetReceipt(task.chainId(), txHash, task.requestId());
         if (receiptResp == null) {
             // transient RPC failure; retry later until max wait
             if (shouldDrop(task)) {
-                markDropped(task.requestId());
+                markDropped(task.requestId(), task.chainId(), txHash, ageSeconds, "receipt rpc failure");
                 return;
             }
             reschedule(task);
             return;
         }
-        if (receiptResp == null || receiptResp.getTransactionReceipt().isEmpty()) {
+        if (receiptResp.getTransactionReceipt().isEmpty()) {
+            var txResp = onchain.getTransactionByHash(task.chainId(), txHash);
+            boolean txVisible = txResp != null && txResp.getTransaction().isPresent();
+            if (txVisible) {
+                var tx = txResp.getTransaction().get();
+                log.info(
+                        "faucetv2 receipt pending requestId={} chainId={} txHash={} ageSeconds={} txNonce={} blockHash={} blockNumber={}",
+                        task.requestId(),
+                        task.chainId(),
+                        txHash,
+                        ageSeconds,
+                        tx.getNonce(),
+                        tx.getBlockHash(),
+                        tx.getBlockNumber()
+                );
+            } else {
+                log.warn(
+                        "faucetv2 receipt missing tx by hash requestId={} chainId={} txHash={} ageSeconds={}",
+                        task.requestId(),
+                        task.chainId(),
+                        txHash,
+                        ageSeconds
+                );
+            }
             if (shouldDrop(task)) {
-                markDropped(task.requestId());
+                markDropped(task.requestId(), task.chainId(), txHash, ageSeconds,
+                        txVisible ? "receipt missing after max wait but tx still queryable" : "tx hash not queryable after max wait");
                 return;
             }
             reschedule(task);
@@ -93,10 +122,10 @@ public class FaucetV2ReceiptQueueService {
         var receipt = receiptResp.getTransactionReceipt().get();
         String status = receipt.getStatus();
         if (status != null && status.equalsIgnoreCase("0x1")) {
-            confirmAndApply(task.requestId());
+            confirmAndApply(task.requestId(), task.chainId(), txHash, ageSeconds, receipt.getBlockNumber(), receipt.getTransactionIndex());
             return;
         }
-        markFailed(task.requestId());
+        markFailed(task.requestId(), task.chainId(), txHash, ageSeconds, status);
     }
 
     private org.web3j.protocol.core.methods.response.EthGetTransactionReceipt safeGetReceipt(
@@ -113,21 +142,45 @@ public class FaucetV2ReceiptQueueService {
         }
     }
 
-    private void markFailed(UUID requestId) {
+    private void markFailed(UUID requestId, long chainId, String txHash, long ageSeconds, String receiptStatus) {
+        log.warn("faucetv2 receipt failed requestId={} chainId={} txHash={} ageSeconds={} receiptStatus={}",
+                requestId, chainId, txHash, ageSeconds, receiptStatus);
         claimRepo.updateStatus(requestId, "FAILED");
     }
 
-    private void markDropped(UUID requestId) {
+    private void markDropped(UUID requestId, long chainId, String txHash, long ageSeconds, String reason) {
+        log.warn("faucetv2 receipt dropped requestId={} chainId={} txHash={} ageSeconds={} reason={}",
+                requestId, chainId, txHash, ageSeconds, reason);
         claimRepo.updateStatus(requestId, "DROPPED");
     }
 
-    private void confirmAndApply(UUID requestId) {
+    private void confirmAndApply(
+            UUID requestId,
+            long chainId,
+            String txHash,
+            long ageSeconds,
+            java.math.BigInteger blockNumber,
+            java.math.BigInteger transactionIndex
+    ) {
         // Ensure idempotency: only apply once when the status flips from SUBMITTED -> CONFIRMED.
         int updated = claimRepo.updateStatus(requestId, "CONFIRMED");
         if (updated <= 0) return;
 
         RollbackRow row = claimRepo.findRollbackRow(requestId);
         if (row == null) return;
+
+        log.info(
+                "faucetv2 receipt confirmed requestId={} chainId={} txHash={} ageSeconds={} blockNumber={} txIndex={} user={} token={} amount={}",
+                requestId,
+                chainId,
+                txHash,
+                ageSeconds,
+                blockNumber,
+                transactionIndex,
+                row.getUserAddress(),
+                row.getTokenAddress(),
+                row.getAmountRaw()
+        );
 
         claimRepo.upsertUserDaily(row.getChainId(), row.getUserAddress(), row.getDay());
         claimRepo.upsertIpDaily(row.getChainId(), row.getIpHash(), row.getDay());
@@ -138,14 +191,21 @@ public class FaucetV2ReceiptQueueService {
     private boolean shouldDrop(ReceiptTask task) {
         Instant createdAt = task.createdAt();
         if (createdAt == null) return false;
-        long age = Duration.between(createdAt, Instant.now()).getSeconds();
-        return age >= MAX_WAIT_SECONDS;
+        return ageSeconds(task) >= MAX_WAIT_SECONDS;
     }
 
     private void reschedule(ReceiptTask task) {
         Instant next = Instant.now().plusSeconds(POLL_SECONDS);
         claimRepo.updateCheckAt(task.requestId(), next);
+        log.info("faucetv2 receipt reschedule requestId={} chainId={} txHash={} nextCheckAt={} ageSeconds={}",
+                task.requestId(), task.chainId(), task.txHash(), next, ageSeconds(task));
         queue.offer(new ReceiptTask(task.requestId(), task.chainId(), task.txHash(), next, task.createdAt()));
+    }
+
+    private long ageSeconds(ReceiptTask task) {
+        Instant createdAt = task.createdAt();
+        if (createdAt == null) return 0L;
+        return Duration.between(createdAt, Instant.now()).getSeconds();
     }
 
     private record ReceiptTask(

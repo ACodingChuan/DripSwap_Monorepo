@@ -1,5 +1,5 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { http } from 'wagmi';
+import { createConfig, http, injected } from 'wagmi';
 import { sepolia, scrollSepolia } from 'wagmi/chains';
 
 const alchemyRpcUrls = {
@@ -7,9 +7,10 @@ const alchemyRpcUrls = {
   [scrollSepolia.id]: import.meta.env.VITE_SCROLL_RPC_URL || '',
 };
 
-export const config = getDefaultConfig({
+const walletConnectProjectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim();
+
+const baseConfig = {
   appName: 'DripSwap',
-  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'demo_project_id',
   // MVP: only support testnets (Sepolia + Scroll Sepolia).
   chains: [sepolia, scrollSepolia],
   transports: {
@@ -17,4 +18,14 @@ export const config = getDefaultConfig({
     [scrollSepolia.id]: http(alchemyRpcUrls[scrollSepolia.id]),
   },
   ssr: false,
-});
+} as const;
+
+export const config = walletConnectProjectId
+  ? getDefaultConfig({
+      ...baseConfig,
+      projectId: walletConnectProjectId,
+    })
+  : createConfig({
+      ...baseConfig,
+      connectors: [injected()],
+    });
